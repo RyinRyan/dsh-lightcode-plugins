@@ -1,0 +1,7 @@
+- insert:
+    - id: configcenter
+      name: configcenter
+      config:
+        maxUploadMiB: 128
+        allowInstallScripts: false
+        allowRestart: true

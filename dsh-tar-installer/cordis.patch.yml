@@ -1,8 +1,0 @@
-# Adds the tarball installer Host row to a DSH Web profile.
-- insert:
-    - id: dsh-tar-installer
-      name: dsh-tar-installer
-      config:
-        maxUploadMiB: 128
-        allowInstallScripts: false
-        allowRestart: true
