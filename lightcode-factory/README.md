@@ -79,7 +79,7 @@ npm.cmd run pack
 
 `npm.cmd run pack` 会重建 `dist` 并在结束时回收临时 staging；`dist` 是单次、可再生的当前版本产物，不作为历史发布归档。上线前的七项质量结论、P0/P1 门槛和故障/容量验收矩阵见 [生产就绪审查](docs/production-readiness-review.md)。
 
-0.4.2 修复定时表单提交：定时模式缺少有效计划时间时会拒绝创建，而不会退化成立即任务。0.4.1 是 0.4.0 的补丁发布：定时任务在执行前会再次核对 durable 计划时间，提前或重复的入队信号不会使其提前运行。0.4.0 增加一次性定时执行、重启恢复、到期前取消和 SQLite schema v2 migration。晨间脚本若模型未完成会明确提示检查当前 DSH 模型与 API Key 配置；凭据仍只由 DSH 管理，不进入 Factory 数据。当前候选包的最终测试、隔离安装和浏览器验收结果记录在 [定时执行变更设计](.design/changes/scheduled-workflow-runs.md)。0.3.0 的历史发布证据保留在 [迁移记录](docs/migration.md)。
+0.4.2 修复定时表单提交：定时模式缺少有效计划时间时会拒绝创建，而不会退化成立即任务。该版本已在专用 `lightcode-workflow-verify` Profile 完成实际功能验收；详细验证与 Profile 隔离边界见[定时提交完整性修复设计](.design/changes/scheduled-submission-integrity.md)。0.4.1 是 0.4.0 的补丁发布：定时任务在执行前会再次核对 durable 计划时间，提前或重复的入队信号不会使其提前运行。0.4.0 增加一次性定时执行、重启恢复、到期前取消和 SQLite schema v2 migration。晨间脚本若模型未完成会明确提示检查当前 DSH 模型与 API Key 配置；凭据仍只由 DSH 管理，不进入 Factory 数据。0.3.0 的历史发布证据保留在 [迁移记录](docs/migration.md)。
 
 本仓库还包含 DSH/Cordis 插件教学站：
 

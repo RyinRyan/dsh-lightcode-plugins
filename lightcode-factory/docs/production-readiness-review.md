@@ -25,7 +25,7 @@
 | 维度 | 现状与优点 | 主要问题 | 优先级 |
 | --- | --- | --- | --- |
 | 可读性 | Contracts、Runtime、Storage、Workflows、Web、Bundle 命名和职责清楚；公开类型有注释 | Runtime 单文件/单类过大；Web 含密集单行 JSX；状态集合、事件字符串和字段语义散落；缺少统一 lint/format 门禁 | P1 |
-| 可维护性 | 有设计门禁、公开 exports、33 项自动化测试和隔离发布流程 | build/pack/tsconfig/Vitest/Bundle 多处硬编码成员；重复 JSON/时间/状态辅助逻辑；没有覆盖率阈值、lint、依赖/许可证/漏洞门禁；发布版本需多 manifest 同步 | P1 |
+| 可维护性 | 有设计门禁、公开 exports、36 项自动化测试和隔离发布流程 | build/pack/tsconfig/Vitest/Bundle 多处硬编码成员；重复 JSON/时间/状态辅助逻辑；没有覆盖率阈值、lint、依赖/许可证/漏洞门禁；发布版本需多 manifest 同步 | P1 |
 | 架构合理性 | 单一 Runtime 状态权威、Repository Port、SQLite Adapter、seek cursor、revision CAS、Bundle composition 边界合理 | Runtime 同时承担注册、接纳、调度、状态机、执行和 Remote；可信进程内 Workflow 无隔离；同步 SQLite 与 Host 事件循环耦合；缺少授权/租户/配额边界 | P0/P1 |
 | 可扩展性 | WorkflowRegistration 和 Catalog 能低成本增加同边界顺序流程 | 仅文本参数、静态顺序节点、人工评审；无 attempt/retry/checkpoint/DAG；Web 用标签/字段名启发式识别多行输入和代码输出，扩展新语义容易误渲染 | P1 |
 | 韧性 | cancel-before-abort、revision CAS、定时任务持久化、重启处理和 lifecycle disposer 有测试 | 无 start 幂等、自动重试、dead-letter、运行超时或强制 drain deadline；Repository/轮询异常路径可能形成未处理 rejection、丢失内存队列项或“命令成功但 UI 报错”；单 Host/单 SQLite | P0 |

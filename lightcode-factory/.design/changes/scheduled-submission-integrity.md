@@ -66,7 +66,7 @@
 
 2026-09-21 已通过设计审计、typecheck、全量测试（8 个测试文件、36 项测试）、build、pack 和 built 审计；六个 tarball 的 package manifest 都是 `0.4.2`，且没有 `.pack-*` staging。新增 Web adapter 回归测试证明 `scheduledFor` 从 slot injection 原样传到 Runtime Client；新增表单回归测试证明定时模式缺少时间时不会调用 immediate `start()`。
 
-对活动 `lightcode` Profile 的安装验证被现有 Profile 的失效依赖阻断：其 package manifest 仍引用不存在的 `.dsh-tar-installer/tarballs/dsh-configuration-center-0.1.0-…tgz`，DSH 在解析依赖树时失败，当前仍安装 `lightcode-factory@0.4.1`。这不是 Factory tarball 错误；修复该 Profile 依赖后，必须重新安装 `0.4.2` 并完成短延时 durable 验收。
+活动 `lightcode` Profile 的安装曾被失效的配置中心 tarball 阻断；从该 Profile 已安装的 `dsh-configuration-center@0.1.0` 重建缺失 tarball 后，`lightcode-factory@0.4.2` 已成功安装。另创建专用 `lightcode-workflow-verify` Profile（仅安装 Factory `0.4.2`），于 `127.0.0.1:3897` 成功启动。用户已在该 Profile 完成实际功能验证并确认通过；定时创建不会再丢失 `scheduledFor`。Profile 仅隔离插件依赖，Factory SQLite 仍位于 DSH Home 下，若需要数据库隔离应另设 `DSH_HOME`。
 
 ## 11. 文档同步
 
