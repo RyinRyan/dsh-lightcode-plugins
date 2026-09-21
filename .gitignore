@@ -1,0 +1,43 @@
+# Dependencies and package-manager caches
+node_modules/
+.pnpm-store/
+.npm/
+.npm-cache/
+.yarn/
+.cache/
+
+# TypeScript and build outputs
+**/lib/
+**/dist/
+**/*.tsbuildinfo
+coverage/
+*.tgz
+*.bundle
+
+# Local verification and runtime data
+.verification/
+.dsh/
+artifacts/
+
+# Environment files and local credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Logs, temporary files and process state
+*.log
+*.pid
+*.pid.lock
+.tmp/
+tmp/
+
+# Editor and operating-system metadata
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+Desktop.ini

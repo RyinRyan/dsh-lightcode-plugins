@@ -1,0 +1,14 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "packages/contracts/tsconfig.json"
+    },
+    {
+      "path": "packages/runtime/tsconfig.client.json"
+    },
+    {
+      "path": "packages/web/tsconfig.client.json"
+    }
+  ]
+}

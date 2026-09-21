@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": "src",
+    "outDir": "lib/types",
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "noEmit": false,
+    "tsBuildInfoFile": ".cache/tsbuild.host.tsbuildinfo"
+  },
+  "include": ["src/index.ts", "src/host/**/*.ts"],
+  "references": [{ "path": "./tsconfig.shared.json" }]
+}

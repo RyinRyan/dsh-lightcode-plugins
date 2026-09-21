@@ -1,0 +1,47 @@
+{
+  "compilerOptions": {
+    "target": "ES2024",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
+    "declaration": true,
+    "composite": true,
+    "jsx": "react-jsx",
+    "types": [
+      "node"
+    ],
+    "paths": {
+      "lightcode-factory-contracts": [
+        "./packages/contracts/src/index.ts"
+      ],
+      "lightcode-factory-contracts/types": [
+        "./packages/contracts/src/types.ts"
+      ],
+      "lightcode-factory-contracts/workflow": [
+        "./packages/contracts/src/workflow.ts"
+      ],
+      "lightcode-factory-contracts/repository": [
+        "./packages/contracts/src/repository.ts"
+      ],
+      "lightcode-factory-contracts/schema": [
+        "./packages/contracts/src/schema.ts"
+      ],
+      "lightcode-factory-contracts/remote": [
+        "./packages/contracts/src/remote.ts"
+      ],
+      "lightcode-factory-runtime": [
+        "./packages/runtime/src/index.ts"
+      ],
+      "lightcode-factory-runtime/client": [
+        "./packages/runtime/src/client/index.ts"
+      ],
+      "lightcode-factory-storage-sqlite": [
+        "./packages/storage-sqlite/src/index.ts"
+      ]
+    }
+  }
+}

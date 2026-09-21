@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="从 Cordis 心智模型到可安装 DSH plugin bundle 的交互式开发指南。">
+  <title>DSH Plugin Atlas · 从概念到可安装 Bundle</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="reading-progress" aria-hidden="true"><span id="readingProgress"></span></div>
+  <header class="topbar">
+    <a class="brand" href="#top" aria-label="返回首页">
+      <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span><strong>DSH Plugin Atlas</strong><small>0.1.5-rc.2 实战版</small></span>
+    </a>
+    <nav class="top-actions" aria-label="页面工具">
+      <span class="version-pill">Cordis 4.0.2</span>
+      <button class="icon-button" id="themeToggle" type="button" aria-label="切换明暗主题" title="切换明暗主题">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.36-6.36-1.42 1.42M7.06 16.94l-1.42 1.42m12.72 0-1.42-1.42M7.06 7.06 5.64 5.64M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z"/></svg>
+      </button>
+      <button class="menu-button" id="menuButton" type="button" aria-label="打开目录" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </nav>
+  </header>
+
+  <div class="shell" id="top">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-intro">
+        <p class="eyebrow">LEARNING PATH</p>
+        <h2>DSH 插件学习站</h2>
+        <p>先理解概念，再按场景选择开发方式。</p>
+      </div>
+      <nav class="toc" aria-label="教程目录">
+        <p class="toc-label">开始</p>
+        <a class="is-active" href="#overview"><span>01</span>学习地图</a>
+        <p class="toc-label">基础概念</p>
+        <a href="#cordis"><span>02</span>什么是 Cordis</a>
+        <a href="#mechanism"><span>03</span>什么是 DSH Plugin</a>
+        <p class="toc-label">按场景开发</p>
+        <a href="#types"><span>04</span>场景选型</a>
+        <a href="#frontend"><span>05</span>开发 Web 页面</a>
+        <a href="#backend"><span>06</span>开发后台能力</a>
+        <a href="#packaging"><span>07</span>打包与依赖</a>
+        <p class="toc-label">问题处理</p>
+        <a href="#debugging"><span>08</span>调试路径</a>
+        <a href="#pitfalls"><span>09</span>常见问题</a>
+        <a href="#builder"><span>10</span>生成开发方案</a>
+      </nav>
+      <div class="sidebar-note">
+        <span class="pulse-dot"></span>
+        <div><strong>版本基线</strong><small>DSH 0.1.5-rc.2 · Cordis 4.0.2</small></div>
+      </div>
+    </aside>
+
+    <main>
+      <section class="hero section" id="overview">
+        <div class="hero-copy">
+          <p class="kicker"><span></span>CORDIS × DSH PLUGIN · LEARNING PATH</p>
+          <h1><span class="hero-line">从 Cordis 到</span><em class="hero-line">DSH Plugin。</em></h1>
+          <p class="hero-lead">先认识 Cordis 如何组织能力，再理解 DSH Plugin 如何连接模型、后台与 Web 页面；最后按工具、服务、工作流、UI 和 Bundle 等场景完成开发与排错。</p>
+          <div class="hero-actions">
+            <a class="button primary" href="#cordis">开始学习 <span>→</span></a>
+            <a class="button ghost" href="#builder">直接生成方案</a>
+          </div>
+          <div class="hero-proof" aria-label="教程范围">
+            <div><strong>4</strong><span>学习阶段</span></div>
+            <div><strong>6</strong><span>开发场景</span></div>
+            <div><strong>8</strong><span>配套文档</span></div>
+          </div>
+        </div>
+        <div class="hero-visual" aria-label="DSH 插件城市类比图">
+          <div class="visual-label"><span>LIVE MAP</span><b>Host ↔ Client</b></div>
+          <img src="./assets/plugin-city.svg" alt="用城市基础设施类比 DSH 插件系统：Cordis 负责连接，Host 与 Web Client 通过 Remote 通信，Bundle 负责交付。">
+          <div class="orbit-chip chip-a">Context</div>
+          <div class="orbit-chip chip-b">Remote</div>
+          <div class="orbit-chip chip-c">Bundle</div>
+        </div>
+      </section>
+
+      <section class="section compact-section" aria-labelledby="route-title">
+        <div class="section-heading row-heading">
+          <div><p class="eyebrow">CHOOSE YOUR ROUTE</p><h2 id="route-title">选择你的学习入口</h2></div>
+          <p>概念学习、插件开发和问题排查对应不同的阅读重点。</p>
+        </div>
+        <div class="route-picker" role="group" aria-label="选择学习角色">
+          <button class="route-card is-selected" data-route="beginner" type="button"><span class="route-icon">◌</span><strong>我是初学者</strong><small>从 Context、Service 和生命周期开始</small></button>
+          <button class="route-card" data-route="developer" type="button"><span class="route-icon">⌘</span><strong>我要开发插件</strong><small>进入场景选型、双端开发与打包</small></button>
+          <button class="route-card" data-route="agent" type="button"><span class="route-icon">◇</span><strong>我要排查问题</strong><small>使用调试路径和常见问题手册</small></button>
+        </div>
+      </section>
+
+      <section class="section" id="cordis">
+        <div class="section-heading">
+          <p class="chapter"><span>02</span>CORDIS FOUNDATIONS</p>
+          <h2>先理解“插座”，再开发“电器”</h2>
+          <p>Cordis 不是神秘内核，它更像一块带生命周期管理的智能配电板。</p>
+        </div>
+        <div class="analogy-grid">
+          <div class="analogy-visual card-frame">
+            <img src="./assets/cordis-board.svg" alt="Cordis 配电板类比图：Context 连接 Tools、Storage、Agent、UI 等服务，插件通过 inject 接入。">
+          </div>
+          <div class="concept-stack">
+            <button class="concept-card is-open" type="button" aria-expanded="true">
+              <span class="concept-index">01</span><span><strong>Context · 配电板</strong><small>稳定的服务容器，也是事件与生命周期入口。</small></span><i>+</i>
+              <em>消费者寻找 <code>ctx.tools</code> 这样的能力名，不直接寻找某个实现类。Host 和 Browser 各有自己的 Context。</em>
+            </button>
+            <button class="concept-card" type="button" aria-expanded="false">
+              <span class="concept-index">02</span><span><strong>Service · 标准插座</strong><small>向其他插件提供稳定、可替换的能力。</small></span><i>+</i>
+              <em>需要状态、生命周期或复用时提供 Service；类名可变，<code>ctx.&lt;key&gt;</code> 是契约。</em>
+            </button>
+            <button class="concept-card" type="button" aria-expanded="false">
+              <span class="concept-index">03</span><span><strong>inject · 用电声明</strong><small>先等依赖就绪，再激活插件。</small></span><i>+</i>
+              <em><code>inject</code> 不是 import 列表。缺少服务时插件会等待，调整文件顺序不能修复错误的 key。</em>
+            </button>
+            <button class="concept-card" type="button" aria-expanded="false">
+              <span class="concept-index">04</span><span><strong>effect · 可拔插线路</strong><small>安装副作用，也登记完整清理动作。</small></span><i>+</i>
+              <em>监听器、timer、业务注册和连接都必须可撤销，HMR 与卸载才能不留残影。</em>
+            </button>
+          </div>
+        </div>
+
+        <div class="lifecycle-panel">
+          <div class="panel-title"><span class="icon-box">↻</span><div><strong>一次插件生命周期</strong><small>点击步骤查看这一阶段最容易犯的错</small></div></div>
+          <div class="lifecycle-track" role="tablist" aria-label="插件生命周期">
+            <button class="life-step is-active" data-life="discover" role="tab" aria-selected="true"><b>1</b><span>发现配置</span></button>
+            <button class="life-step" data-life="inject" role="tab" aria-selected="false"><b>2</b><span>等待依赖</span></button>
+            <button class="life-step" data-life="apply" role="tab" aria-selected="false"><b>3</b><span>Apply / Init</span></button>
+            <button class="life-step" data-life="work" role="tab" aria-selected="false"><b>4</b><span>运行</span></button>
+            <button class="life-step" data-life="dispose" role="tab" aria-selected="false"><b>5</b><span>Dispose</span></button>
+          </div>
+          <div class="life-detail" id="lifeDetail"><strong>发现配置</strong><p>Profile 与 Bundle patch 组合出 Loader 行；这一步先确认 <code>id</code>、<code>name</code> 与 config 是否进入最终树。</p><span>常见错：还没 dump-config 就直接排查业务代码。</span></div>
+        </div>
+      </section>
+
+      <section class="section dark-section" id="mechanism">
+        <div class="section-heading inverse">
+          <p class="chapter"><span>03</span>WHAT IS A DSH PLUGIN</p>
+          <h2>DSH Plugin 是如何工作的？</h2>
+          <p>它是挂载到 Cordis 上的一组能力贡献。分清 Host、Client 和 Composition，就能看懂插件从代码到产品的完整路径。</p>
+        </div>
+        <div class="planes">
+          <article class="plane host-plane">
+            <div class="plane-head"><span>HOST</span><small>Node.js · trusted process</small></div>
+            <h3>做真正的工作</h3>
+            <ul><li>存储、文件与子进程</li><li>Agent / Tool / Workflow</li><li>凭据、权限与状态权威</li></ul>
+            <div class="mini-nodes"><span>Service</span><span>Storage</span><span>Agent</span></div>
+          </article>
+          <div class="remote-bridge"><span>validated JSON</span><strong>REMOTE</strong><i>⇄</i><small>schema · error · cancel</small></div>
+          <article class="plane client-plane">
+            <div class="plane-head"><span>CLIENT</span><small>Browser · presentation</small></div>
+            <h3>让用户看见和控制</h3>
+            <ul><li>React 页面与 Slot</li><li>交互状态与本地化</li><li>命令、快照与错误态</li></ul>
+            <div class="mini-nodes"><span>Slots</span><span>Store</span><span>View</span></div>
+          </article>
+        </div>
+        <div class="composition-strip">
+          <div><span>COMPOSITION</span><strong>Bundle patch</strong></div><i>→</i><div><span>PROFILE</span><strong>有序组合</strong></div><i>→</i><div><span>LOADER</span><strong>插件树</strong></div><i>→</i><div><span>CORDIS</span><strong>依赖激活</strong></div>
+        </div>
+        <div class="callout warning"><span>!</span><p><strong>安全边界：</strong>普通 DSH 插件是宿主进程内可信代码。工具沙箱不等于插件沙箱；不可信第三方逻辑应放进独立进程/容器，再走窄 RPC。</p></div>
+      </section>
+
+      <section class="section" id="types">
+        <div class="section-heading row-heading">
+          <div><p class="chapter"><span>04</span>SCENARIO GUIDE</p><h2>面对不同场景，应该开发什么？</h2></div>
+          <p>不要从包结构出发；先回答“谁触发、谁持有状态、是否需要界面”。</p>
+        </div>
+        <div class="filter-row" role="group" aria-label="筛选插件类型">
+          <button class="filter-chip is-active" data-filter="all" type="button">全部</button>
+          <button class="filter-chip" data-filter="model" type="button">模型能力</button>
+          <button class="filter-chip" data-filter="runtime" type="button">后台能力</button>
+          <button class="filter-chip" data-filter="ui" type="button">用户界面</button>
+          <button class="filter-chip" data-filter="delivery" type="button">安装交付</button>
+        </div>
+        <div class="type-grid">
+          <article class="type-card" data-category="model"><span class="type-num">01</span><div class="type-glyph">⌁</div><h3>让模型调用一个能力</h3><p>输入一次、执行一次、返回结构化结果。</p><code>Tool Plugin</code><small>例如：查询数据、转换文件、受控命令</small></article>
+          <article class="type-card" data-category="runtime"><span class="type-num">02</span><div class="type-glyph">⤨</div><h3>拦截或约束现有行为</h3><p>在执行前后加入审批、超时或审计。</p><code>Hook / Policy</code><small>例如：权限门禁、重试、指标采集</small></article>
+          <article class="type-card" data-category="runtime"><span class="type-num">03</span><div class="type-glyph">◫</div><h3>提供共享后台能力</h3><p>能力有状态、可复用，或需要替换实现。</p><code>Service / Provider</code><small>例如：存储、执行器、业务目录</small></article>
+          <article class="type-card" data-category="model runtime"><span class="type-num">04</span><div class="type-glyph">⌘</div><h3>运行多步骤业务流程</h3><p>任务有节点、状态机、取消或人工评审。</p><code>Workflow Plugin</code><small>例如：代码审查、报告生成、发布流程</small></article>
+          <article class="type-card" data-category="ui"><span class="type-num">05</span><div class="type-glyph">▦</div><h3>增加 Web 页面或面板</h3><p>用户需要查看状态、填写输入或操作任务。</p><code>Client Plugin</code><small>例如：侧栏、工作台、运行详情</small></article>
+          <article class="type-card" data-category="delivery"><span class="type-num">06</span><div class="type-glyph">⬡</div><h3>交付可安装的产品</h3><p>把多个插件和配置组合为一键安装包。</p><code>Plugin Bundle</code><small>例如：安装、升级、卸载与 profile 装配</small></article>
+        </div>
+        <div class="decision-rule"><strong>三秒决策：</strong><span>模型要主动用？→ Tool</span><span>需要 durable 状态？→ Service</span><span>用户要看和点？→ Client</span><span>要一键安装？→ Bundle</span></div>
+      </section>
+
+      <section class="section split-section" id="frontend">
+        <div class="section-heading">
+          <p class="chapter"><span>05</span>WEB CLIENT</p>
+          <h2>前台不是 Host 的“另一个文件夹”</h2>
+          <p>它是独立的 Browser runtime，有自己的模块图、Cordis Context 和构建产物。</p>
+        </div>
+        <div class="pipeline-card">
+          <div class="pipeline-head"><strong>浏览器加载链路</strong><span>production reads lib/client.js</span></div>
+          <div class="pipeline">
+            <div><b>01</b><strong>Loader 行启用</strong><small>Host plugin active</small></div><i>→</i>
+            <div><b>02</b><strong>扫描 dsh.client</strong><small>manifest graph</small></div><i>→</i>
+            <div><b>03</b><strong>加载 client.js</strong><small>ModuleLoader factory</small></div><i>→</i>
+            <div><b>04</b><strong>Client inject</strong><small>service readiness</small></div><i>→</i>
+            <div><b>05</b><strong>注册 Slot</strong><small>render feature</small></div>
+          </div>
+        </div>
+        <div class="two-columns">
+          <article class="code-card">
+            <div class="code-head"><span><i class="dot red"></i><i class="dot amber"></i><i class="dot green"></i></span><strong>package.json</strong><button class="copy-button" type="button" data-copy="clientManifest">复制</button></div>
+            <pre id="clientManifest"><code>{
+  "exports": {
+    "./client": {
+      "default": "./lib/client.js"
+    }
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": ["…ui-slots"]
+    }
+  }
+}</code></pre>
+          </article>
+          <article class="practice-card route-detail" data-for-route="developer agent">
+            <p class="eyebrow">FRONTEND RULES</p><h3>六条不会过时的边界</h3>
+            <ol><li><b>ctx 止于 apply</b><span>组件只接收 props。</span></li><li><b>业务事实留在 Host</b><span>Client store 只存交互状态。</span></li><li><b>通过 Slots 组合</b><span>不 import 另一个业务插件组件。</span></li><li><b>共享宿主身份</b><span>React/Cordis 作为 external。</span></li><li><b>所有文案本地化</b><span>id 与 wire 值保持稳定。</span></li><li><b>Remote 要有 schema</b><span>只传必要 JSON，不传 secret。</span></li></ol>
+          </article>
+        </div>
+        <div class="callout info"><span>i</span><p>页面不出现时按顺序查：<strong>manifest → ./client export → tarball files → /plugins 请求 → external → Client inject → slot</strong>。不要一开始就改 React 组件。</p></div>
+      </section>
+
+      <section class="section backend-section" id="backend">
+        <div class="section-heading">
+          <p class="chapter"><span>06</span>BACKEND SERVICE</p>
+          <h2>后台是状态权威，不是 UI 的附属品</h2>
+          <p>持久化、调度、取消、权限与凭据只在 Host 端收口。</p>
+        </div>
+        <div class="authority-map">
+          <div class="authority-core"><span>ONE WRITER</span><strong>Backend Runtime</strong><small>run · node · event · queue · review</small></div>
+          <div class="authority-satellite sat-a"><b>Workflow</b><small>提交业务事实</small></div>
+          <div class="authority-satellite sat-b"><b>Web Client</b><small>命令 + 展示</small></div>
+          <div class="authority-satellite sat-c"><b>Storage</b><small>durable records</small></div>
+          <svg viewBox="0 0 700 310" aria-hidden="true"><path d="M350 155 C235 65 180 70 112 80M350 155 C470 62 526 64 590 80M350 155 C350 238 350 248 350 276"/><circle cx="350" cy="155" r="6"/></svg>
+        </div>
+        <div class="state-machine" aria-label="工作流状态机">
+          <div class="state-label"><strong>明确状态机</strong><small>终态不可被晚到结果覆盖</small></div>
+          <div class="state-track"><span class="state queued">queued</span><i>→</i><span class="state running">running</span><i>→</i><span class="state review">review</span><i>→</i><span class="state completed">completed</span></div>
+          <div class="state-branches"><span>queued / running / review</span><i>↘</i><b>cancelled</b><i>·</i><b>failed</b></div>
+        </div>
+        <div class="backend-grid">
+          <article><span>01</span><h3>注册</h3><p>metadata + 完整 execute，返回 disposer；拒绝重复 id。</p></article>
+          <article><span>02</span><h3>入队</h3><p>先 durable write，再进入队列；插件卸载竞态也有定义。</p></article>
+          <article><span>03</span><h3>执行</h3><p>逐节点 await，传递 AbortSignal，输出必须为有界 JSON。</p></article>
+          <article><span>04</span><h3>取消</h3><p>先写终态，再发信号；晚到返回不能复活任务。</p></article>
+          <article><span>05</span><h3>停机</h3><p>停止 admission → abort → await → flush → close。</p></article>
+          <article><span>06</span><h3>恢复</h3><p>没有 checkpoint 就明确失败，不能伪装成续跑。</p></article>
+        </div>
+      </section>
+
+      <section class="section" id="packaging">
+        <div class="section-heading">
+          <p class="chapter"><span>07</span>PACKAGING & DEPENDENCIES</p>
+          <h2>能运行 ≠ 能交付</h2>
+          <p>把依赖关系分清，才能做出离开源码目录仍然可安装的 `.tgz`。</p>
+        </div>
+        <div class="dependency-lab">
+          <div class="dep-tabs" role="tablist" aria-label="依赖类型">
+            <button class="dep-tab is-active" data-dep="runtime" type="button" role="tab">Host runtime</button>
+            <button class="dep-tab" data-dep="identity" type="button" role="tab">宿主唯一身份</button>
+            <button class="dep-tab" data-dep="build" type="button" role="tab">构建/测试</button>
+            <button class="dep-tab" data-dep="browser" type="button" role="tab">Browser graph</button>
+          </div>
+          <div class="dep-display">
+            <div><span id="depLabel">dependencies</span><strong id="depExample">zod · 业务运行库</strong></div>
+            <p id="depDescription">安装后的 Node 入口真实 import，由包管理器提供。</p>
+            <code id="depRule">规则：运行时缺少它，Host 会直接加载失败。</code>
+          </div>
+        </div>
+        <div class="bundle-stack">
+          <div class="stack-caption"><p class="eyebrow">ONE INSTALLABLE TARBALL</p><h3>典型双端插件的四层装配</h3></div>
+          <div class="stack-visual">
+            <div class="stack-layer top"><span>my-product-bundle</span><small>Bundle · patch · install entry</small></div>
+            <div class="stack-connector">includes</div>
+            <div class="stack-row"><div><span>my-web</span><small>Host + Client</small></div><div><span>my-backend</span><small>Runtime + Remote</small></div><div><span>my-workflow</span><small>Business plugin</small></div></div>
+            <div class="stack-connector">shares</div>
+            <div class="stack-layer base"><span>DSH Host</span><small>Cordis · React · Client platform · policies</small></div>
+          </div>
+        </div>
+        <div class="command-runway">
+          <div class="runway-head"><strong>标准交付跑道</strong><span>每一步都必须绿</span></div>
+          <div class="commands"><code>npm ci</code><i>→</i><code>npm run build</code><i>→</i><code>npm test</code><i>→</i><code>npm run pack</code><i>→</i><code>dsh plugin add …tgz</code></div>
+        </div>
+      </section>
+
+      <section class="section testing-section" id="debugging">
+        <div class="section-heading row-heading">
+          <div><p class="chapter"><span>08</span>TROUBLESHOOTING PATH</p><h2>用调试路径定位，不靠大海捞针</h2></div>
+          <p>从契约到真实安装，一层只证明一件事。</p>
+        </div>
+        <div class="test-ladder">
+          <article><b>06</b><span>隔离 Profile E2E</span><small>add · run · restart · remove</small></article>
+          <article><b>05</b><span>Tarball inspection</span><small>exports · files · dependency closure</small></article>
+          <article><b>04</b><span>UI component</span><small>visible behavior · a11y · errors</small></article>
+          <article><b>03</b><span>Loader composition</span><small>real config · agent · tool · process</small></article>
+          <article><b>02</b><span>Service / state</span><small>cancel · race · recovery · limits</small></article>
+          <article><b>01</b><span>Type & schema</span><small>host/client boundary · contracts</small></article>
+        </div>
+        <div class="diagnostic-grid">
+          <article><span class="status-dot orange"></span><h3>一直 PENDING</h3><p>检查 Cordis service key 与运行端面；不要通过调整文件顺序掩盖错误依赖。</p></article>
+          <article><span class="status-dot blue"></span><h3>Host 正常，UI 为空</h3><p>沿 manifest → client.js → external → inject → slot 的加载链逐项确认。</p></article>
+          <article><span class="status-dot red"></span><h3>取消后又成功</h3><p>先提交 durable terminal；节点返回时再次检查，拒绝晚到结果。</p></article>
+          <article><span class="status-dot green"></span><h3>源码绿，安装红</h3><p>检查真正 tarball 的发布视图，尤其 workspace 链接与 Client 产物。</p></article>
+        </div>
+      </section>
+
+      <section class="section" id="pitfalls">
+        <div class="section-heading">
+          <p class="chapter"><span>09</span>COMMON QUESTIONS</p>
+          <h2>常见问题与处理方式</h2>
+          <p>从症状开始，依次查看“可能原因 → 推荐处理”。</p>
+        </div>
+        <div class="pitfall-list">
+          <details open><summary><span class="severity high">高频</span><strong>源码能跑，tarball 安装后找不到成员包</strong><i>+</i></summary><div><p><b>根因</b> npm workspace 使用本地链接，外层 pack 并未自动携带真实成员文件。</p><p><b>修复</b> 先 pack 每个成员，在 staging 目录用 <code>file:</code> tarball 离线安装，再 pack 外层 bundle。</p></div></details>
+          <details><summary><span class="severity high">高频</span><strong>页面 invalid hook call / Cordis 服务彼此不可见</strong><i>+</i></summary><div><p><b>根因</b> 浏览器 bundle 内嵌了第二份 React 或 Cordis，破坏运行时身份。</p><p><b>修复</b> 宿主基座设为 external；npm 用 peer dependency 表达宿主身份。</p></div></details>
+          <details><summary><span class="severity medium">竞态</span><strong>取消任务后，节点晚到返回把它改成成功</strong><i>+</i></summary><div><p><b>根因</b> 把 AbortSignal 当作“取消已完成”，且节点提交前没有检查 durable 终态。</p><p><b>修复</b> 先持久化取消，再广播信号；所有提交点拒绝覆盖 terminal。</p></div></details>
+          <details><summary><span class="severity medium">生命周期</span><strong>HMR 后监听器、定时器或业务注册变成两份</strong><i>+</i></summary><div><p><b>根因</b> 注册不属于插件 effect，旧 fiber 卸载时没有 disposer。</p><p><b>修复</b> 所有副作用进入 <code>ctx.effect()</code>，并让异步 disposer 完整 drain。</p></div></details>
+          <details><summary><span class="severity low">版本</span><strong>换一个相邻 DSH 版本就出现难以解释的问题</strong><i>+</i></summary><div><p><b>根因</b> developer preview 的插件、Remote、Client module 接口被当作稳定 ABI。</p><p><b>修复</b> 固定精确版本/commit，记录验证矩阵；升级时重跑安装、启动、重启和卸载闭环。</p></div></details>
+        </div>
+        <a class="text-link" href="../07-pitfalls.md">打开完整踩坑手册 <span>↗</span></a>
+      </section>
+
+      <section class="section builder-section" id="builder">
+        <div class="builder-intro">
+          <p class="chapter"><span>10</span>REQUIREMENT TRANSLATOR</p>
+          <h2>把一句原始需求，翻译成插件蓝图</h2>
+          <p>选择能力特征，得到建议包拓扑、关键契约与验收路径。结果是起点，不替代对目标 DSH 版本的核对。</p>
+        </div>
+        <div class="builder-shell">
+          <form class="builder-form" id="blueprintForm">
+            <fieldset><legend>谁触发它？</legend><label><input type="radio" name="trigger" value="model" checked><span>模型自主调用</span></label><label><input type="radio" name="trigger" value="user"><span>用户页面操作</span></label><label><input type="radio" name="trigger" value="external"><span>外部系统 / 协议</span></label></fieldset>
+            <fieldset><legend>需要哪些能力？</legend><label><input type="checkbox" name="capability" value="state"><span>持久状态 / 长任务</span></label><label><input type="checkbox" name="capability" value="ui"><span>Web 页面 / 实时进度</span></label><label><input type="checkbox" name="capability" value="workflow"><span>多步骤 / 人工评审</span></label><label><input type="checkbox" name="capability" value="untrusted"><span>执行第三方或不可信代码</span></label></fieldset>
+            <fieldset><legend>如何交付？</legend><label><input type="radio" name="delivery" value="bundle" checked><span>一键安装 Bundle</span></label><label><input type="radio" name="delivery" value="source"><span>源码 overlay / 内部开发</span></label></fieldset>
+          </form>
+          <div class="blueprint-output" aria-live="polite">
+            <div class="blueprint-head"><span>GENERATED BLUEPRINT</span><button class="copy-blueprint" id="copyBlueprint" type="button">复制方案</button></div>
+            <h3 id="blueprintTitle">轻量 Tool Bundle</h3>
+            <div class="blueprint-packages" id="blueprintPackages"></div>
+            <div class="blueprint-columns"><div><strong>必须先写的契约</strong><ul id="blueprintContracts"></ul></div><div><strong>验收重点</strong><ul id="blueprintChecks"></ul></div></div>
+            <div class="blueprint-warning" id="blueprintWarning"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section docs-section" aria-labelledby="docs-title">
+        <div class="section-heading row-heading">
+          <div><p class="eyebrow">DEEP DIVE</p><h2 id="docs-title">继续阅读工程手册</h2></div>
+          <p>网页负责建立地图，Markdown 负责带你走完全程。</p>
+        </div>
+        <div class="docs-grid">
+          <a href="../01-cordis-foundations.md"><span>01</span><strong>Cordis 基础</strong><small>Context · Service · effect</small></a>
+          <a href="../02-plugin-model-and-types.md"><span>02</span><strong>插件原理与分类</strong><small>工具 · Hook · Workflow · Bundle</small></a>
+          <a href="../03-web-client.md"><span>03</span><strong>Web 前台</strong><small>Client bundle · Slot · Remote</small></a>
+          <a href="../04-backend-service.md"><span>04</span><strong>后台服务</strong><small>状态 · 取消 · 恢复 · 安全</small></a>
+          <a href="../05-packaging-and-dependencies.md"><span>05</span><strong>打包与依赖</strong><small>npm · external · profile</small></a>
+          <a href="../06-debugging-and-testing.md"><span>06</span><strong>调试与测试</strong><small>测试梯 · 故障定位 · E2E</small></a>
+          <a href="../07-pitfalls.md"><span>07</span><strong>踩坑手册</strong><small>症状 · 根因 · 修复</small></a>
+          <a href="../08-agent-playbook.md"><span>08</span><strong>Agent 开发协议</strong><small>需求 → 契约 → Bundle</small></a>
+        </div>
+      </section>
+
+      <footer>
+        <div><strong>DSH Plugin Atlas</strong><p>面向初学者、插件开发者与排障人员的通用学习站。</p></div>
+        <div class="footer-meta"><span>DSH 0.1.5-rc.2</span><span>Cordis 4.0.2</span><span>Node ≥ 24</span></div>
+      </footer>
+    </main>
+  </div>
+  <script src="./app.js" defer></script>
+</body>
+</html>

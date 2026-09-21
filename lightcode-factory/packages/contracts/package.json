@@ -1,0 +1,21 @@
+{
+  "name": "lightcode-factory-contracts",
+  "version": "0.4.0",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": { "types": "./lib/types/index.d.ts", "default": "./lib/index.js" },
+    "./types": { "types": "./lib/types/types.d.ts", "default": "./lib/types/types.js" },
+    "./workflow": { "types": "./lib/types/workflow.d.ts", "default": "./lib/types/workflow.js" },
+    "./repository": { "types": "./lib/types/repository.d.ts", "default": "./lib/types/repository.js" },
+    "./schema": { "types": "./lib/types/schema.d.ts", "default": "./lib/types/schema.js" },
+    "./remote": { "types": "./lib/types/remote.d.ts", "default": "./lib/types/remote.js" },
+    "./package.json": "./package.json"
+  },
+  "files": ["lib/index.js", "lib/types"],
+  "license": "MIT",
+  "peerDependencies": { "@deepseek-ai/cordis": "4.0.2" },
+  "peerDependenciesMeta": { "@deepseek-ai/cordis": { "optional": true } },
+  "dependencies": { "zod": "4.4.3" }
+}
