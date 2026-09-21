@@ -87,12 +87,12 @@ export function FactoryBoard({ useFactorySnapshot, refresh, loadMore, getRun, st
     setScheduledLocal('')
     setSubmitError(null)
   }
-  const submitTask = () => {
+  const submitTask = (mode: ExecutionMode, scheduledLocalValue: string) => {
     if (selectedWorkflow === undefined || submitting) return
     let scheduledFor: string | undefined
-    if (executionMode === 'scheduled') {
-      const timestamp = Date.parse(scheduledLocal)
-      if (scheduledLocal === '' || Number.isNaN(timestamp) || timestamp <= Date.now()) {
+    if (mode === 'scheduled') {
+      const timestamp = Date.parse(scheduledLocalValue)
+      if (scheduledLocalValue === '' || Number.isNaN(timestamp) || timestamp <= Date.now()) {
         setSubmitError(t('task.scheduleFuture'))
         return
       }
@@ -122,7 +122,12 @@ export function FactoryBoard({ useFactorySnapshot, refresh, loadMore, getRun, st
           <div><h2 id="workflow-create-title">{t('task.create')}</h2><p>{t('task.dialogSubtitle')}</p></div>
           <button className={css.taskModalClose} type="button" aria-label={t('task.close')} disabled={submitting} onClick={closeCreator}>×</button>
         </header>
-        <form onSubmit={(event) => { event.preventDefault(); submitTask() }}>
+        <form onSubmit={(event) => {
+          event.preventDefault()
+          const data = new FormData(event.currentTarget)
+          const mode = data.get('execution-mode')
+          submitTask(mode === 'scheduled' ? 'scheduled' : 'immediate', String(data.get('scheduled-for') ?? ''))
+        }}>
           <div className={css.taskModalBody}>
             <section className={css.workflowChooser}>
               <h3>{t('task.select')}</h3>
@@ -161,8 +166,8 @@ export function FactoryBoard({ useFactorySnapshot, refresh, loadMore, getRun, st
             {selectedWorkflow !== undefined && <fieldset className={css.executionSchedule}>
               <legend>{t('task.executionMode')}</legend>
               <div className={css.executionChoices}>
-                <label><input type="radio" name="execution-mode" checked={executionMode === 'immediate'} onChange={() => { setExecutionMode('immediate'); setSubmitError(null) }} />{t('task.immediate')}</label>
-                <label><input type="radio" name="execution-mode" checked={executionMode === 'scheduled'} onChange={() => {
+                <label><input type="radio" name="execution-mode" value="immediate" checked={executionMode === 'immediate'} onChange={() => { setExecutionMode('immediate'); setScheduledLocal(''); setSubmitError(null) }} />{t('task.immediate')}</label>
+                <label><input type="radio" name="execution-mode" value="scheduled" checked={executionMode === 'scheduled'} onChange={() => {
                   setExecutionMode('scheduled')
                   setScheduledLocal(value => value || datetimeLocalValue(new Date(Date.now() + 5 * 60_000)))
                   setSubmitError(null)
@@ -170,7 +175,7 @@ export function FactoryBoard({ useFactorySnapshot, refresh, loadMore, getRun, st
               </div>
               {executionMode === 'scheduled' && <label className={css.scheduleTime} htmlFor="workflow-scheduled-for">
                 <span>{t('task.scheduleTime')}</span>
-                <input id="workflow-scheduled-for" aria-label={t('task.scheduleTime')} type="datetime-local" required
+                <input id="workflow-scheduled-for" name="scheduled-for" aria-label={t('task.scheduleTime')} type="datetime-local" required
                   min={datetimeLocalValue(new Date(Date.now() + 60_000))} value={scheduledLocal}
                   onChange={(event) => { setScheduledLocal(event.target.value); setSubmitError(null) }} />
                 <small>{t('task.scheduleHint')}</small>

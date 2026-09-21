@@ -10,7 +10,7 @@ LightCode Factory 是安装到 DSH 的独立 Workflow 工厂插件。它不修�
 
 ```powershell
 dsh --profile lightcode --from-default-profile web --dump-config
-dsh plugin --profile lightcode add "D:\develop\dsh-workflow\dsh-lightcode-plugins\lightcode-factory\dist\lightcode-factory-0.4.1.tgz" --ignore-scripts
+dsh plugin --profile lightcode add "D:\develop\dsh-workflow\dsh-lightcode-plugins\lightcode-factory\dist\lightcode-factory-0.4.2.tgz" --ignore-scripts
 dsh --profile lightcode --no-open --host 127.0.0.1 --port 3892
 ```
 
@@ -38,7 +38,7 @@ dsh plugin --profile lightcode remove lightcode-factory
 | `lightcode-factory-web` | Catalog 表单、六状态看板、加载更多、运行详情和轨迹 |
 | `lightcode-factory` | 安装装配；不包含业务逻辑 |
 
-新建任务可选择立即执行或指定浏览器本地日期时间进行一次性定时执行。定时任务以 durable `queued` 保存，到点才占用并发槽；执行前会再次核对持久化计划时间，提前或重复的入队信号不会使其提前运行。Host 重启后由相同 workflow id/version 恢复，到点前可取消。页面首次读取最多 60 条 run，轮询只刷新第一页；历史通过 opaque cursor 加载更多，详情通过单条查询刷新。SQLite backup API 可生成不覆盖的一致性副本。
+新建任务可选择立即执行或指定浏览器本地日期时间进行一次性定时执行。定时提交从当前表单的执行方式和时间读取：时间缺失、非法或已过期会明确报错，绝不会静默创建立即任务。定时任务以 durable `queued` 保存，到点才占用并发槽；执行前会再次核对持久化计划时间，提前或重复的入队信号不会使其提前运行。Host 重启后由相同 workflow id/version 恢复，到点前可取消。页面首次读取最多 60 条 run，轮询只刷新第一页；历史通过 opaque cursor 加载更多，详情通过单条查询刷新。SQLite backup API 可生成不覆盖的一致性副本。
 
 ## 新增内置 Workflow
 
@@ -79,7 +79,7 @@ npm.cmd run pack
 
 `npm.cmd run pack` 会重建 `dist` 并在结束时回收临时 staging；`dist` 是单次、可再生的当前版本产物，不作为历史发布归档。上线前的七项质量结论、P0/P1 门槛和故障/容量验收矩阵见 [生产就绪审查](docs/production-readiness-review.md)。
 
-0.4.1 是 0.4.0 的补丁发布：定时任务在执行前会再次核对 durable 计划时间，提前或重复的入队信号不会使其提前运行。0.4.0 增加一次性定时执行、重启恢复、到期前取消和 SQLite schema v2 migration。晨间脚本若模型未完成会明确提示检查当前 DSH 模型与 API Key 配置；凭据仍只由 DSH 管理，不进入 Factory 数据。当前候选包的最终测试、隔离安装和浏览器验收结果记录在 [定时执行变更设计](.design/changes/scheduled-workflow-runs.md)。0.3.0 的历史发布证据保留在 [迁移记录](docs/migration.md)。
+0.4.2 修复定时表单提交：定时模式缺少有效计划时间时会拒绝创建，而不会退化成立即任务。0.4.1 是 0.4.0 的补丁发布：定时任务在执行前会再次核对 durable 计划时间，提前或重复的入队信号不会使其提前运行。0.4.0 增加一次性定时执行、重启恢复、到期前取消和 SQLite schema v2 migration。晨间脚本若模型未完成会明确提示检查当前 DSH 模型与 API Key 配置；凭据仍只由 DSH 管理，不进入 Factory 数据。当前候选包的最终测试、隔离安装和浏览器验收结果记录在 [定时执行变更设计](.design/changes/scheduled-workflow-runs.md)。0.3.0 的历史发布证据保留在 [迁移记录](docs/migration.md)。
 
 本仓库还包含 DSH/Cordis 插件教学站：
 

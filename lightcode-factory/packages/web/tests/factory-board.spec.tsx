@@ -79,6 +79,23 @@ it('creates a one-time scheduled task from local browser time', async () => {
   })
 })
 
+it('rejects a scheduled submission with no time instead of creating an immediate task', async () => {
+  const start = vi.fn().mockResolvedValue({})
+  render(<FactoryBoard {...props({ phase: 'ready', error: null, runs: [], definitions: [{
+    id: 'report', version: '1.0.0', name: '报告生成', description: '',
+    parameters: [{ name: 'subject', label: '报告主题', required: true }], nodes: [{ id: 'report', name: '生成报告' }],
+  }] }, start)} />)
+
+  fireEvent.click(screen.getByText('新建任务'))
+  fireEvent.change(screen.getByLabelText('报告主题'), { target: { value: '定时报告' } })
+  fireEvent.click(screen.getByLabelText('定时执行'))
+  fireEvent.change(screen.getByLabelText('计划执行时间'), { target: { value: '' } })
+  fireEvent.submit(screen.getByRole('button', { name: '创建定时任务' }).closest('form')!)
+
+  expect(start).not.toHaveBeenCalled()
+  expect(screen.getByRole('alert').textContent).toBe('请选择未来的执行时间')
+})
+
 it('shows the planned time for a queued scheduled task', () => {
   render(<FactoryBoard {...props({ phase: 'ready', error: null, definitions: [], runs: [{
     id: 'scheduled', workflowId: 'report', workflowVersion: '1.0.0', input: {}, name: '报告生成', status: 'queued',

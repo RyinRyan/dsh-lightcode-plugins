@@ -1,6 +1,6 @@
 {
   "name": "lightcode-factory",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "Install LightCode Factory into a DSH web profile",
   "type": "module",
   "main": "index.js",
@@ -15,11 +15,11 @@
     }
   },
   "dependencies": {
-    "lightcode-factory-contracts": "0.4.1",
-    "lightcode-factory-runtime": "0.4.1",
-    "lightcode-factory-storage-sqlite": "0.4.1",
-    "lightcode-factory-workflows": "0.4.1",
-    "lightcode-factory-web": "0.4.1"
+    "lightcode-factory-contracts": "0.4.2",
+    "lightcode-factory-runtime": "0.4.2",
+    "lightcode-factory-storage-sqlite": "0.4.2",
+    "lightcode-factory-workflows": "0.4.2",
+    "lightcode-factory-web": "0.4.2"
   },
   "bundleDependencies": [
     "lightcode-factory-contracts",

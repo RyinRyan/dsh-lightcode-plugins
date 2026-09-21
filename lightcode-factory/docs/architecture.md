@@ -102,7 +102,7 @@ namespace 是 `factory`：
 | `getRun({ runId })` | 单条最新完整 aggregate |
 | `start/cancel/review` | durable 命令；start 可带一次性 `scheduledFor`，返回最新 aggregate |
 
-Browser service `lightcodeFactoryClient` 首次并行读取 catalog 与第一页；750ms 轮询只刷新默认 60 条第一页。`loadMore()` 追加下一页并按 id 去重；打开卡片调用 `getRun()` 刷新详情；命令后刷新第一页并保留返回 aggregate。创建表单把浏览器本地 `datetime-local` 转为 ISO UTC，Runtime 再校验必须是未来时间。不存在全历史 snapshot API。
+Browser service `lightcodeFactoryClient` 首次并行读取 catalog 与第一页；750ms 轮询只刷新默认 60 条第一页。`loadMore()` 追加下一页并按 id 去重；打开卡片调用 `getRun()` 刷新详情；命令后刷新第一页并保留返回 aggregate。创建表单在提交时从原生 form 当前选中的执行方式和 `datetime-local` 读取值；定时模式缺少有效未来时间会拒绝提交，只有有效时间才转为 ISO UTC 发送给 Runtime。不存在全历史 snapshot API。
 
 Web 只从 `FactoryClientSnapshot` 派生页面。运行详情展示 output/error 与 Runtime 生命周期事件；轨迹展示 observation、callId/sessionId；未知 JSON 使用通用回退。禁止按 workflowId、包名、节点 id 或中文名称分支。
 

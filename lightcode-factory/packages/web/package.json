@@ -1,6 +1,6 @@
 {
   "name": "lightcode-factory-web",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
@@ -34,8 +34,8 @@
     }
   },
   "dependencies": {
-    "lightcode-factory-contracts": "0.4.1",
-    "lightcode-factory-runtime": "0.4.1"
+    "lightcode-factory-contracts": "0.4.2",
+    "lightcode-factory-runtime": "0.4.2"
   },
   "dsh": {
     "client": {
