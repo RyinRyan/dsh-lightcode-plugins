@@ -39,3 +39,8 @@ tmp/
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# Built package tarballs distributed via this repository
+# (re-include dist/ contents despite dist/ and *.tgz above)
+!dist/
+!dist/**
