@@ -15,12 +15,12 @@ interface EditorState {
   readonly value: string
 }
 
-function relativeTime(iso: string): string {
+function relativeTime(t: Translate, iso: string): string {
   const elapsed = Date.now() - Date.parse(iso)
-  if (!Number.isFinite(elapsed) || elapsed < 60_000) return '刚刚'
+  if (!Number.isFinite(elapsed) || elapsed < 60_000) return t('time.justNow')
   const hours = Math.floor(elapsed / 3_600_000)
-  if (hours < 24) return `${hours} 小时前`
-  return `${Math.floor(hours / 24)} 天前`
+  if (hours < 24) return t('time.hoursAgo', { count: hours })
+  return t('time.daysAgo', { count: Math.floor(hours / 24) })
 }
 
 function EditIcon() {
@@ -117,7 +117,7 @@ export function CredentialPanel(props: CredentialPanelProps) {
                     <td><code>{variable.name}</code></td>
                     <td>{variable.description || '—'}</td>
                     <td><span className="dsh-cc-secret" aria-label={t('value.configured')}>••••••••••••</span></td>
-                    <td><time dateTime={variable.updatedAt}>{relativeTime(variable.updatedAt)}</time></td>
+                    <td><time dateTime={variable.updatedAt}>{relativeTime(t, variable.updatedAt)}</time></td>
                     <td><div className="dsh-cc-actions">
                       <button type="button" aria-label={`${t('action.edit')} ${variable.name}`} disabled={pending} onClick={() => { openEdit(variable) }}><EditIcon /></button>
                       <button type="button" className="dsh-cc-danger" aria-label={`${t('action.delete')} ${variable.name}`} disabled={pending} onClick={() => { void remove(variable) }}><TrashIcon /></button>

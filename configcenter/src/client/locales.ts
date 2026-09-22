@@ -1,12 +1,20 @@
-/** Locale dictionaries owned by the credential-center page. */
-export const NS = 'dsh-credential-center'
+/**
+ * Locale dictionary for the unified configuration center.
+ *
+ * One namespace serves both tabs; the installer feature prefixes its keys
+ * with `installer.` so the two vocabularies cannot collide.
+ */
+export const NS = 'configcenter'
 
 export const zh = {
+  // Shared shell
   'panel.label': '配置中心',
   'panel.title': '配置中心',
   'panel.subtitle': '集中管理凭据与 DSH 插件',
   'tabs.credentials': '凭据管理',
   'tabs.plugins': '插件管理',
+
+  // Credentials tab
   'panel.help': '插件通过变量名读取配置值，例如 DEEPSEEK_API_KEY',
   'action.add': '新增变量',
   'action.edit': '编辑变量',
@@ -34,14 +42,82 @@ export const zh = {
   'delete.confirm': '确定删除变量 {name} 吗？',
   'state.loading': '正在加载变量…',
   'state.error': '无法加载凭据中心',
+  'time.justNow': '刚刚',
+  'time.hoursAgo': '{count} 小时前',
+  'time.daysAgo': '{count} 天前',
+
+  // Plugins tab
+  'installer.title': '安装本地 DSH 插件',
+  'installer.subtitle': '上传 npm pack 生成的 .tgz 或 .tar.gz，检查清单后安装到当前 Profile。',
+  'installer.drop.title': '拖入插件 Tar 包',
+  'installer.drop.hint': '或点击选择文件；文件只暂存在本机，安装结束后删除。',
+  'installer.select': '选择文件',
+  'installer.checking': '正在检查…',
+  'installer.package': '包',
+  'installer.version': '版本',
+  'installer.size': '大小',
+  'installer.profile': '目标 Profile',
+  'installer.sha': 'SHA-256',
+  'installer.host': 'Host 入口',
+  'installer.client': '浏览器入口',
+  'installer.bundle': 'Bundle Patch',
+  'installer.yes': '有',
+  'installer.no': '无',
+  'installer.scripts': '允许运行包的安装脚本',
+  'installer.scripts.warn': '仅对你完全信任的包开启；脚本以当前用户权限执行。',
+  'installer.install': '确认安装',
+  'installer.installing': '安装中…',
+  'installer.removing': '卸载中…',
+  'installer.success': '安装成功',
+  'installer.failed': '安装失败',
+  'installer.restart.needed': '该包已安装，需重启当前 DSH Profile 后生效。',
+  'installer.restart.action': '重启 DSH',
+  'installer.restart.confirm': '将重启当前 DSH Profile。浏览器会自动重连，正在执行的任务可能中断。确定继续吗？',
+  'installer.restart.pending': '正在重启…',
+  'installer.restart.reconnecting': 'DSH 正在重启；浏览器将自动重连。',
+  'installer.restart.disabled': '此 Profile 已禁用自助重启。',
+  'installer.restart.debugger': '调试器运行期间禁止自助重启。',
+  'installer.restart.origin': '仅允许同源回环请求重启。',
+  'installer.live': '已即时生效，无需重启；刷新页面即可看到新的浏览器入口。',
+  'installer.output': '安装输出',
+  'installer.retry': '重新选择',
+  'installer.safe': '默认安全模式：安装脚本已禁用',
+  'installer.remove.action': '卸载',
+  'installer.remove.confirm': '确定卸载 {name} 吗？正在运行的相关功能可能中断。',
+  'installer.remove.success': '卸载成功',
+  'installer.remove.live': '已从当前会话即时卸载。',
+  'installer.activation.include-unavailable': '当前 DSH Host 不提供热挂载能力。',
+  'installer.activation.patch-missing': '包中没有可热挂载的 cordis.patch.yml。',
+  'installer.activation.patch-unsupported': '包的 Bundle Patch 含配置或表达式，不能安全热挂载。',
+  'installer.activation.mount-failed': '热挂载失败。',
+  'installer.activation.not-mounted': '该包未在当前会话中热挂载。',
+  'installer.installed.title': '当前已安装包',
+  'installer.installed.subtitle': '显示当前 Profile 的直接依赖；安装完成后会自动刷新。',
+  'installer.installed.refresh': '刷新清单',
+  'installer.installed.search': '按包名筛选',
+  'installer.installed.loading': '正在读取已安装包…',
+  'installer.installed.empty': '当前 Profile 没有直接安装的包。',
+  'installer.installed.noMatch': '没有匹配的包。',
+  'installer.installed.unresolved': '未解析版本',
+  'installer.installed.plugin': 'DSH 插件',
+  'installer.installed.package': '普通包',
+  'installer.source.registry': 'npm 仓库',
+  'installer.source.local-file': '本地文件',
+  'installer.source.git': 'Git 源',
+  'installer.source.unknown': '其他来源',
 } as const
 
-export const en: Record<keyof typeof zh, string> = {
+export type MessageKey = keyof typeof zh
+
+export const en: Record<MessageKey, string> = {
+  // Shared shell
   'panel.label': 'Configuration',
   'panel.title': 'Configuration Center',
   'panel.subtitle': 'Manage credentials and DSH plugins in one place',
   'tabs.credentials': 'Credentials',
   'tabs.plugins': 'Plugins',
+
+  // Credentials tab
   'panel.help': 'Plugins read configured values by name, for example DEEPSEEK_API_KEY',
   'action.add': 'Add variable',
   'action.edit': 'Edit variable',
@@ -69,7 +145,70 @@ export const en: Record<keyof typeof zh, string> = {
   'delete.confirm': 'Delete variable {name}?',
   'state.loading': 'Loading variables…',
   'state.error': 'Credential Center could not load',
+  'time.justNow': 'just now',
+  'time.hoursAgo': '{count} hours ago',
+  'time.daysAgo': '{count} days ago',
+
+  // Plugins tab
+  'installer.title': 'Install a local DSH plugin',
+  'installer.subtitle': 'Upload an npm-pack .tgz or .tar.gz, review its manifest, then install it into the current profile.',
+  'installer.drop.title': 'Drop a plugin tarball here',
+  'installer.drop.hint': 'or choose a file; it stays local and is deleted after installation.',
+  'installer.select': 'Choose file',
+  'installer.checking': 'Inspecting…',
+  'installer.package': 'Package',
+  'installer.version': 'Version',
+  'installer.size': 'Size',
+  'installer.profile': 'Target profile',
+  'installer.sha': 'SHA-256',
+  'installer.host': 'Host entry',
+  'installer.client': 'Browser entry',
+  'installer.bundle': 'Bundle patch',
+  'installer.yes': 'Yes',
+  'installer.no': 'No',
+  'installer.scripts': 'Allow package install scripts',
+  'installer.scripts.warn': 'Enable only for a package you fully trust; scripts run with your user permissions.',
+  'installer.install': 'Confirm install',
+  'installer.installing': 'Installing…',
+  'installer.removing': 'Removing…',
+  'installer.success': 'Installed successfully',
+  'installer.failed': 'Installation failed',
+  'installer.restart.needed': 'The package is installed; restart this DSH profile for it to take effect.',
+  'installer.restart.action': 'Restart DSH',
+  'installer.restart.confirm': 'Restart this DSH Profile? The browser will reconnect automatically and running work may be interrupted.',
+  'installer.restart.pending': 'Restarting…',
+  'installer.restart.reconnecting': 'DSH is restarting; the browser will reconnect automatically.',
+  'installer.restart.disabled': 'Self-service restart is disabled for this profile.',
+  'installer.restart.debugger': 'Self-service restart is unavailable while a debugger is attached.',
+  'installer.restart.origin': 'Restart is limited to same-origin loopback requests.',
+  'installer.live': 'Activated immediately; refresh the page to see its browser entry.',
+  'installer.output': 'Install output',
+  'installer.retry': 'Choose another',
+  'installer.safe': 'Safe by default: install scripts are disabled',
+  'installer.remove.action': 'Remove',
+  'installer.remove.confirm': 'Remove {name}? Related running features may be interrupted.',
+  'installer.remove.success': 'Removed successfully',
+  'installer.remove.live': 'Removed from the current session immediately.',
+  'installer.activation.include-unavailable': 'This DSH host does not provide Include-based hot mounting.',
+  'installer.activation.patch-missing': 'The package has no cordis.patch.yml to hot-mount.',
+  'installer.activation.patch-unsupported': 'The bundle patch contains config or expressions and cannot be hot-mounted safely.',
+  'installer.activation.mount-failed': 'Hot mounting failed.',
+  'installer.activation.not-mounted': 'The package was not hot-mounted in this session.',
+  'installer.installed.title': 'Installed packages',
+  'installer.installed.subtitle': 'Direct dependencies of this Profile; refreshed automatically after installation.',
+  'installer.installed.refresh': 'Refresh list',
+  'installer.installed.search': 'Filter by package name',
+  'installer.installed.loading': 'Reading installed packages…',
+  'installer.installed.empty': 'This Profile has no directly installed packages.',
+  'installer.installed.noMatch': 'No packages match this filter.',
+  'installer.installed.unresolved': 'Unresolved version',
+  'installer.installed.plugin': 'DSH plugin',
+  'installer.installed.package': 'Regular package',
+  'installer.source.registry': 'npm registry',
+  'installer.source.local-file': 'local file',
+  'installer.source.git': 'Git source',
+  'installer.source.unknown': 'other source',
 }
 
 export const dictionaries = { zh, en }
-export type Translate = (key: keyof typeof zh, params?: Record<string, string | number>) => string
+export type Translate = (key: MessageKey, params?: Record<string, string | number>) => string

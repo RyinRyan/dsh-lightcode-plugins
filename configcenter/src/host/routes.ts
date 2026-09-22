@@ -92,3 +92,15 @@ export function registerCredentialCenterRoutes(host: CredentialRouteHost, store:
   }
   return host.webServer.register({ kind: 'prefix', path: ROUTE_PREFIX, handler })
 }
+
+/**
+ * Fail-safe routes for a store that could not load: the panel gets a
+ * structured 503 explaining the outage instead of an opaque 404.
+ */
+export function registerUnavailableRoutes(host: CredentialRouteHost, reason: string): () => void {
+  const handler = (req: IncomingMessage, res: ServerResponse): void => {
+    host.logger?.error(`[configcenter] credential store unavailable: ${req.method} ${req.url ?? ''} (${reason})`)
+    sendJson(res, 503, apiFail('INTERNAL', 'credential store is unavailable; see the host log for details'))
+  }
+  return host.webServer.register({ kind: 'prefix', path: ROUTE_PREFIX, handler })
+}

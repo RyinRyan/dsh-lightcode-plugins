@@ -1,4 +1,3 @@
-import { useMemo } from 'react'
 import type { CredentialCenterApi } from './api.js'
 import { CredentialPanel } from './CredentialPanel.js'
 import type { Translate } from './locales.js'
@@ -6,11 +5,11 @@ import { useVariables } from './useVariables.js'
 
 export interface CredentialPanelContainerProps {
   readonly api: CredentialCenterApi
-  readonly t: (key: string, params?: Record<string, unknown>) => string
+  readonly t: Translate
 }
 
-export function CredentialPanelContainer(props: CredentialPanelContainerProps) {
-  const state = useVariables(props.api)
-  const t = useMemo<Translate>(() => (key, params) => props.t(key, params), [props.t])
+/** Wires the credential state machine into the presentational panel. */
+export function CredentialPanelContainer({ api, t }: CredentialPanelContainerProps) {
+  const state = useVariables(api)
   return <CredentialPanel {...state} t={t} />
 }

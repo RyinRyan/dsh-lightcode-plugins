@@ -1,20 +1,31 @@
+/** Single-writer install authority. Upload inspection and command execution stay Host-side. */
 import { spawn, type ChildProcess } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { dirname, isAbsolute, resolve } from 'node:path'
-import type { InstallOperation, InstalledPackage, InstallerSnapshot, PackagePreview } from '../shared/protocol.js'
-import { defaultProfileDirectory, listInstalledPackages } from './installed.js'
+import { dirname, isAbsolute } from 'node:path'
+import type { Activation, InstallOperation, InstalledPackage, InstallerSnapshot, PackagePreview } from '../shared/protocol.js'
+import { defaultProfileDirectory } from '../../host/profile.js'
+import { dshLauncherPath } from './cli.js'
+import { listInstalledPackages } from './installed.js'
 import { persistTarball } from './artifacts.js'
-import type { Activation } from './hot.js'
 import { StagingStore } from './staging.js'
 
 const OUTPUT_LIMIT = 96 * 1024
-const INSTALL_TIMEOUT_MS = 15 * 60 * 1000
+const COMMAND_TIMEOUT_MS = 15 * 60 * 1000
 const SAFE_PROFILE = /^[\p{L}\p{M}\p{N}._ -]+$/u
+const SAFE_PACKAGE = /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/i
 
 export interface CommandResult {
   readonly exitCode: number | null
   readonly timedOut: boolean
   readonly output: string
+}
+
+/** A rejected installer request carrying a stable, wire-facing error code. */
+export class InstallerError extends Error {
+  constructor(readonly code: 'VALIDATION' | 'BUSY', message: string) {
+    super(message)
+    this.name = 'InstallerError'
+  }
 }
 
 export type CommandRunner = (profile: string, tarballPath: string, allowScripts: boolean) => Promise<CommandResult>
@@ -30,37 +41,54 @@ function quoteCmdArg(value: string): string {
   return `"${value.replace(/"/g, '""')}"`
 }
 
-function dshInvocation(): { file: string; args: string[]; cwd?: string; windowsShim: boolean } {
-  const entry = process.argv[1]
-  if (entry !== undefined && /[\\/](?:bin\.(?:js|ts)|dsh)$/.test(entry)) {
-    const absolute = resolve(entry)
-    return { file: process.execPath, args: [...process.execArgv, absolute], cwd: dirname(absolute), windowsShim: false }
+function killProcessTree(child: ChildProcess): void {
+  if (child.pid === undefined) return
+  if (process.platform === 'win32') {
+    const killer = spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true })
+    killer.unref()
+    return
   }
-  return { file: 'dsh', args: [], windowsShim: process.platform === 'win32' }
+  try {
+    process.kill(-child.pid, 'SIGTERM')
+  } catch {
+    child.kill('SIGTERM')
+  }
 }
 
-/** Invoke the same DSH CLI that launched this host, never a shell for user-controlled data. */
-export function runDshInstall(profile: string, tarballPath: string, allowScripts: boolean): Promise<CommandResult> {
-  if (!isAbsolute(tarballPath) || tarballPath.includes('\0')) return Promise.reject(new Error('staged tarball path must be absolute'))
-  if (!SAFE_PROFILE.test(profile)) return Promise.reject(new Error(`unsafe profile name: ${JSON.stringify(profile)}`))
-  const invocation = dshInvocation()
-  const pluginArgs = ['plugin', '--profile', profile, 'add', tarballPath, ...(allowScripts ? [] : ['--ignore-scripts'])]
-  let file = invocation.file
-  let args = [...invocation.args, ...pluginArgs]
-  if (invocation.windowsShim) {
-    const comspec = process.env.ComSpec ?? 'cmd.exe'
+/**
+ * Run one `dsh plugin …` subcommand of the DSH CLI that launched this host.
+ * Arguments are never passed through a shell; the only cmd.exe shim is the
+ * PATH-lookup fallback on Windows, where `dsh` is a batch wrapper that
+ * cannot be spawned directly.
+ */
+function runDshCommand(extraArgs: string[]): Promise<CommandResult> {
+  const launcher = dshLauncherPath()
+  let file: string
+  let args: string[]
+  let cwd: string | undefined
+  let windowsShim = false
+  if (launcher !== undefined) {
+    file = process.execPath
+    args = [...process.execArgv, launcher, ...extraArgs]
+    cwd = dirname(launcher)
+  } else {
+    file = 'dsh'
+    args = extraArgs
+    windowsShim = process.platform === 'win32'
+  }
+  if (windowsShim) {
     const command = [file, ...args].map(quoteCmdArg).join(' ')
-    file = comspec
+    file = process.env.ComSpec ?? 'cmd.exe'
     args = ['/d', '/s', '/c', `"${command}"`]
   }
   return new Promise(resolveResult => {
     const child = spawn(file, args, {
-      cwd: invocation.cwd,
+      cwd,
       env: { ...process.env, CI: 'true' },
       stdio: ['ignore', 'pipe', 'pipe'],
       shell: false,
       windowsHide: true,
-      windowsVerbatimArguments: invocation.windowsShim,
+      windowsVerbatimArguments: windowsShim,
       detached: process.platform !== 'win32',
     })
     let output = ''
@@ -73,7 +101,7 @@ export function runDshInstall(profile: string, tarballPath: string, allowScripts
     const timer = setTimeout(() => {
       timedOut = true
       killProcessTree(child)
-    }, INSTALL_TIMEOUT_MS)
+    }, COMMAND_TIMEOUT_MS)
     timer.unref?.()
     child.on('error', error => {
       clearTimeout(timer)
@@ -86,40 +114,35 @@ export function runDshInstall(profile: string, tarballPath: string, allowScripts
   })
 }
 
+/** Install one tarball through DSH's own CLI, never a shell for user-controlled data. */
+export function runDshInstall(profile: string, tarballPath: string, allowScripts: boolean): Promise<CommandResult> {
+  if (!isAbsolute(tarballPath) || tarballPath.includes('\0')) return Promise.reject(new Error('staged tarball path must be absolute'))
+  if (!SAFE_PROFILE.test(profile)) return Promise.reject(new Error(`unsafe profile name: ${JSON.stringify(profile)}`))
+  return runDshCommand(['plugin', '--profile', profile, 'add', tarballPath, ...(allowScripts ? [] : ['--ignore-scripts'])])
+}
+
 /** Remove exactly one direct profile dependency through DSH's own CLI. */
 export function runDshRemove(profile: string, packageName: string): Promise<CommandResult> {
   if (!SAFE_PROFILE.test(profile)) return Promise.reject(new Error(`unsafe profile name: ${JSON.stringify(profile)}`))
-  if (!/^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/i.test(packageName)) return Promise.reject(new Error('unsafe package name'))
-  const invocation = dshInvocation()
-  let file = invocation.file
-  let args = [...invocation.args, 'plugin', '--profile', profile, 'remove', packageName]
-  if (invocation.windowsShim) {
-    const command = [file, ...args].map(quoteCmdArg).join(' ')
-    file = process.env.ComSpec ?? 'cmd.exe'
-    args = ['/d', '/s', '/c', `"${command}"`]
-  }
-  return new Promise(resolveResult => {
-    const child = spawn(file, args, { cwd: invocation.cwd, env: { ...process.env, CI: 'true' }, stdio: ['ignore', 'pipe', 'pipe'], shell: false, windowsHide: true, windowsVerbatimArguments: invocation.windowsShim, detached: process.platform !== 'win32' })
-    let output = ''; let timedOut = false
-    const append = (chunk: Buffer): void => { output = `${output}${chunk.toString()}`.slice(-OUTPUT_LIMIT) }
-    child.stdout?.on('data', append); child.stderr?.on('data', append)
-    const timer = setTimeout(() => { timedOut = true; killProcessTree(child) }, INSTALL_TIMEOUT_MS); timer.unref?.()
-    child.on('error', error => { clearTimeout(timer); resolveResult({ exitCode: 127, timedOut: false, output: `${output}\n${error.message}`.trim() }) })
-    child.on('close', code => { clearTimeout(timer); resolveResult({ exitCode: code, timedOut, output: output.trim() }) })
-  })
+  if (!SAFE_PACKAGE.test(packageName)) return Promise.reject(new Error('unsafe package name'))
+  return runDshCommand(['plugin', '--profile', profile, 'remove', packageName])
 }
 
-function killProcessTree(child: ChildProcess): void {
-  if (child.pid === undefined) return
-  if (process.platform === 'win32') {
-    const killer = spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true })
-    killer.unref()
-    return
-  }
-  try { process.kill(-child.pid, 'SIGTERM') } catch { child.kill('SIGTERM') }
+export interface InstallerServiceOptions {
+  readonly profile: string
+  readonly allowInstallScripts: boolean
+  readonly maxUploadBytes: number
+  readonly profileDirectory?: string
+  readonly staging?: StagingStore
+  readonly run?: CommandRunner
+  readonly remove?: RemoveRunner
+  readonly readInstalled?: () => InstalledPackage[]
+  readonly persist?: TarballPersister
+  readonly activate?: Activator
+  readonly deactivate?: Deactivator
+  readonly audit?: InstallerAudit
 }
 
-/** Single-writer install authority. Upload inspection and command execution stay Host-side. */
 export class InstallerService {
   readonly #profile: string
   readonly #allowInstallScripts: boolean
@@ -136,7 +159,7 @@ export class InstallerService {
   #operation: InstallOperation | null = null
   #disposed = false
 
-  constructor(options: { profile: string; allowInstallScripts: boolean; maxUploadBytes: number; profileDirectory?: string; staging?: StagingStore; run?: CommandRunner; remove?: RemoveRunner; readInstalled?: () => InstalledPackage[]; persist?: TarballPersister; activate?: Activator; deactivate?: Deactivator; audit?: InstallerAudit }) {
+  constructor(options: InstallerServiceOptions) {
     this.#profile = options.profile
     this.#allowInstallScripts = options.allowInstallScripts
     this.#maxUploadBytes = options.maxUploadBytes
@@ -145,9 +168,9 @@ export class InstallerService {
     const profileDirectory = options.profileDirectory ?? defaultProfileDirectory(options.profile)
     this.#readInstalled = options.readInstalled ?? (() => listInstalledPackages(profileDirectory))
     this.#persist = options.persist ?? ((path, preview) => persistTarball(profileDirectory, path, preview))
-    this.#activate = options.activate ?? (async () => ({ state: 'restart-required', reason: '热挂载未配置' }))
+    this.#activate = options.activate ?? (async () => ({ state: 'restart-required', reasonCode: 'include-unavailable', reason: 'hot mounting is not configured' }))
     this.#remove = options.remove ?? runDshRemove
-    this.#deactivate = options.deactivate ?? (async () => ({ state: 'restart-required', reason: '当前会话没有可卸载的热挂载实例' }))
+    this.#deactivate = options.deactivate ?? (async () => ({ state: 'restart-required', reasonCode: 'not-mounted', reason: 'no hot-mounted instance exists in this session' }))
     this.#audit = options.audit ?? (() => {})
   }
 
@@ -162,11 +185,13 @@ export class InstallerService {
     }
   }
 
-  isRunning(): boolean { return this.#operation?.state === 'running' }
+  isRunning(): boolean {
+    return this.#operation?.state === 'running'
+  }
 
   async inspect(bytes: Buffer, fileName: string): Promise<PackagePreview> {
-    if (this.#disposed) throw new Error('installer is disposed')
-    if (this.#operation?.state === 'running') throw new Error('an install is already running')
+    this.#ensureNotDisposed()
+    this.#ensureIdle()
     const preview = await this.#staging.stage(bytes, fileName)
     this.#staged = preview
     this.#audit('plugin.inspect', { name: preview.name, version: preview.version, size: preview.size })
@@ -174,15 +199,14 @@ export class InstallerService {
   }
 
   async start(token: string, allowScripts: boolean): Promise<InstallOperation> {
-    if (this.#disposed) throw new Error('installer is disposed')
-    if (this.#operation?.state === 'running') throw new Error('an install is already running')
-    if (allowScripts && !this.#allowInstallScripts) throw new Error('install scripts are disabled by plugin configuration')
+    this.#ensureNotDisposed()
+    this.#ensureIdle()
+    if (allowScripts && !this.#allowInstallScripts) throw new InstallerError('VALIDATION', 'install scripts are disabled by plugin configuration')
     const staged = await this.#staging.consume(token)
-    if (staged === null) throw new Error('staged tarball is missing or expired')
+    if (staged === null) throw new InstallerError('VALIDATION', 'staged tarball is missing or expired')
     this.#staged = null
-    const id = randomUUID()
     const started: InstallOperation = {
-      id,
+      id: randomUUID(),
       kind: 'install',
       packageName: staged.preview.name,
       version: staged.preview.version,
@@ -191,53 +215,54 @@ export class InstallerService {
     }
     this.#operation = started
     this.#audit('plugin.install.started', { name: staged.preview.name, version: staged.preview.version, allowScripts })
-    void this.#execute(id, staged.path, staged.preview, started, allowScripts)
+    void this.#executeInstall(started, staged.path, staged.preview, allowScripts)
     return started
   }
 
   async remove(packageName: string): Promise<InstallOperation> {
-    if (this.#disposed) throw new Error('installer is disposed')
-    if (this.#operation?.state === 'running') throw new Error('an operation is already running')
-    if (packageName === 'configcenter') throw new Error('configcenter cannot remove itself')
+    this.#ensureNotDisposed()
+    this.#ensureIdle()
+    if (packageName === 'configcenter') throw new InstallerError('VALIDATION', 'configcenter cannot remove itself')
     const installed = this.#readInstalled().find(item => item.name === packageName)
-    if (installed === undefined) throw new Error('package is not a direct dependency of this profile')
-    const started: InstallOperation = { id: randomUUID(), kind: 'remove', packageName, version: installed.version ?? 'unknown', state: 'running', startedAt: new Date().toISOString() }
+    if (installed === undefined) throw new InstallerError('VALIDATION', 'package is not a direct dependency of this profile')
+    const started: InstallOperation = {
+      id: randomUUID(),
+      kind: 'remove',
+      packageName,
+      version: installed.version ?? 'unknown',
+      state: 'running',
+      startedAt: new Date().toISOString(),
+    }
     this.#operation = started
     this.#audit('plugin.remove.started', { name: packageName, version: started.version })
     void this.#executeRemove(started)
     return started
   }
 
-  async #execute(id: string, path: string, preview: PackagePreview, started: InstallOperation, allowScripts: boolean): Promise<void> {
+  async dispose(): Promise<void> {
+    this.#disposed = true
+    await this.#staging.dispose()
+  }
+
+  #ensureNotDisposed(): void {
+    if (this.#disposed) throw new Error('installer is disposed')
+  }
+
+  #ensureIdle(): void {
+    if (this.#operation?.state === 'running') throw new InstallerError('BUSY', 'an operation is already running')
+  }
+
+  async #executeInstall(started: InstallOperation, stagedPath: string, preview: PackagePreview, allowScripts: boolean): Promise<void> {
     try {
-      const persistedPath = await this.#persist(path, preview)
+      const persistedPath = await this.#persist(stagedPath, preview)
       const result = await this.#run(this.#profile, persistedPath, allowScripts)
-      if (this.#operation?.id !== id) return
-      const succeeded = result.exitCode === 0 && !result.timedOut
-      const activation = succeeded ? await this.#activate(started.packageName) : undefined
-      this.#operation = {
-        ...started,
-        state: succeeded ? 'succeeded' : 'failed',
-        finishedAt: new Date().toISOString(),
-        exitCode: result.exitCode,
-        timedOut: result.timedOut,
-        output: result.output,
-        ...(activation === undefined ? {} : { activation }),
-        ...(!succeeded ? { error: result.timedOut ? 'installation timed out' : `dsh plugin add exited with ${String(result.exitCode)}` } : {}),
-      }
-      this.#audit('plugin.install.finished', { name: started.packageName, version: started.version, succeeded, timedOut: result.timedOut, exitCode: result.exitCode })
+      if (this.#operation?.id !== started.id) return
+      const activation = this.#succeeded(result) ? await this.#activate(started.packageName) : undefined
+      this.#finish(started, result, activation)
     } catch (error) {
-      if (this.#operation?.id === id) {
-        this.#operation = {
-          ...started,
-          state: 'failed',
-          finishedAt: new Date().toISOString(),
-          error: error instanceof Error ? error.message : String(error),
-        }
-        this.#audit('plugin.install.failed', { name: started.packageName, version: started.version, reason: error instanceof Error ? error.name : 'unknown' })
-      }
+      this.#fail(started, error)
     } finally {
-      await this.#staging.removePath(path)
+      await this.#staging.removePath(stagedPath)
     }
   }
 
@@ -245,16 +270,56 @@ export class InstallerService {
     try {
       const result = await this.#remove(this.#profile, started.packageName)
       if (this.#operation?.id !== started.id) return
-      const succeeded = result.exitCode === 0 && !result.timedOut
-      const activation = succeeded ? await this.#deactivate(started.packageName) : undefined
-      this.#operation = { ...started, state: succeeded ? 'succeeded' : 'failed', finishedAt: new Date().toISOString(), exitCode: result.exitCode, timedOut: result.timedOut, output: result.output, ...(activation === undefined ? {} : { activation }), ...(!succeeded ? { error: result.timedOut ? 'removal timed out' : `dsh plugin remove exited with ${String(result.exitCode)}` } : {}) }
+      const activation = this.#succeeded(result) ? await this.#deactivate(started.packageName) : undefined
+      this.#finish(started, result, activation)
     } catch (error) {
-      if (this.#operation?.id === started.id) this.#operation = { ...started, state: 'failed', finishedAt: new Date().toISOString(), error: error instanceof Error ? error.message : String(error) }
+      this.#fail(started, error)
     }
   }
 
-  async dispose(): Promise<void> {
-    this.#disposed = true
-    await this.#staging.dispose()
+  #succeeded(result: CommandResult): boolean {
+    return result.exitCode === 0 && !result.timedOut
+  }
+
+  #finish(started: InstallOperation, result: CommandResult, activation: Activation | undefined): void {
+    const succeeded = this.#succeeded(result)
+    this.#operation = {
+      ...started,
+      state: succeeded ? 'succeeded' : 'failed',
+      finishedAt: new Date().toISOString(),
+      exitCode: result.exitCode,
+      timedOut: result.timedOut,
+      output: result.output,
+      ...(activation === undefined ? {} : { activation }),
+      ...(!succeeded
+        ? {
+            error: result.timedOut
+              ? `${started.kind === 'install' ? 'installation' : 'removal'} timed out`
+              : `dsh plugin ${started.kind === 'install' ? 'add' : 'remove'} exited with ${String(result.exitCode)}`,
+          }
+        : {}),
+    }
+    this.#audit(`plugin.${started.kind}.finished`, {
+      name: started.packageName,
+      version: started.version,
+      succeeded,
+      timedOut: result.timedOut,
+      exitCode: result.exitCode,
+    })
+  }
+
+  #fail(started: InstallOperation, error: unknown): void {
+    if (this.#operation?.id !== started.id) return
+    this.#operation = {
+      ...started,
+      state: 'failed',
+      finishedAt: new Date().toISOString(),
+      error: error instanceof Error ? error.message : String(error),
+    }
+    this.#audit(`plugin.${started.kind}.failed`, {
+      name: started.packageName,
+      version: started.version,
+      reason: error instanceof Error ? error.name : 'unknown',
+    })
   }
 }

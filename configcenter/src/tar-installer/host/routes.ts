@@ -1,112 +1,180 @@
-import type { IncomingMessage, ServerResponse } from 'node:http'
+/** Same-origin upload, install, remove, status, and restart API. */
+import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'node:http'
+import type { ApiResult } from '../../shared/api.js'
 import { ROUTE_PREFIX, apiFail, apiOk } from '../shared/protocol.js'
-import type { InstallerService } from './installer.js'
+import { HttpBodyError, parseJsonBody, readBoundedBody, sameOrigin, sendJson } from '../../host/http.js'
+import { InstallerError, type InstallerService } from './installer.js'
 import { TarballValidationError } from './tarball.js'
-import { restartDisabledReason, scheduleRestart, servingPort, trustedRestartRequest } from './restart.js'
+import { type RestartDisabledReason, restartDisabledReason, scheduleRestart, servingPort, trustedRestartRequest } from './restart.js'
 
+/** Structural host surface; satisfied by a Cordis context. */
 export interface WebServerHost {
-  webServer: {
-    register(route: { kind: 'prefix'; path: string; handler: (request: IncomingMessage, response: ServerResponse) => void | Promise<void> }): () => void
+  readonly webServer: {
+    register(route: {
+      kind: 'prefix'
+      path: string
+      handler: (request: IncomingMessage, response: ServerResponse) => void | Promise<void>
+    }): () => void
   }
+  readonly logger?: { error(message: string): void }
 }
 
-function sendJson(response: ServerResponse, status: number, body: unknown): void {
-  response.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
-  response.end(JSON.stringify(body))
+/** A parsed installer request, decoupled from node HTTP so tests need no server. */
+export interface InstallerHttpRequest {
+  readonly method: string
+  readonly pathname: string
+  readonly headers: IncomingHttpHeaders
+  readonly remoteAddress: string | undefined
+  /** Read the raw request body, enforcing `maxBytes`. */
+  readBody(maxBytes: number): Promise<Buffer>
 }
 
-export function sameOrigin(request: IncomingMessage): boolean {
-  const origin = request.headers.origin
-  if (origin === undefined) return true
-  const host = request.headers.host
-  if (host === undefined) return false
-  try { return new URL(origin).host === host } catch { return false }
+export interface InstallerHttpResponse {
+  readonly status: number
+  readonly body: ApiResult<unknown>
 }
 
-async function readBounded(request: IncomingMessage, maxBytes: number): Promise<Buffer> {
-  const declared = Number(request.headers['content-length'] ?? 0)
-  if (Number.isFinite(declared) && declared > maxBytes) throw new Error('upload is too large')
-  const chunks: Buffer[] = []
-  let size = 0
-  for await (const chunk of request) {
-    const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
-    size += bytes.length
-    if (size > maxBytes) throw new Error('upload is too large')
-    chunks.push(bytes)
-  }
-  return Buffer.concat(chunks)
+export interface InstallerRouteOptions {
+  readonly allowRestart: boolean
+  /** Injectable restart action for tests; defaults to the real self-restart. */
+  readonly restart?: (port: number | null) => unknown
+  readonly logger?: { error(message: string): void }
 }
 
-async function readJson(request: IncomingMessage): Promise<unknown> {
-  return JSON.parse((await readBounded(request, 4096)).toString('utf8')) as unknown
+const RESTART_DISABLED_MESSAGES: Record<RestartDisabledReason, string> = {
+  'restart-disabled': 'self-service restart is disabled for this profile',
+  'debugger-active': 'self-service restart is unavailable while a debugger is attached',
 }
 
-function fileNameFrom(request: IncomingMessage): string {
-  const raw = request.headers['x-dsh-file-name']
+function fileNameFrom(headers: IncomingHttpHeaders): string {
+  const raw = headers['x-dsh-file-name']
   if (typeof raw !== 'string') return 'plugin.tgz'
-  try { return decodeURIComponent(raw).slice(0, 240) } catch { return 'plugin.tgz' }
+  try {
+    return decodeURIComponent(raw).slice(0, 240)
+  } catch {
+    return 'plugin.tgz'
+  }
 }
 
-/** Mount the same-origin upload, install and status API. */
-export function registerInstallerRoutes(host: WebServerHost, service: InstallerService, options: { allowRestart: boolean }): () => void {
-  let restarting = false
+/** Maps one installer request to its outcome, one operation at a time. */
+export class InstallerRouter {
+  #restarting = false
+
+  constructor(
+    private readonly service: InstallerService,
+    private readonly options: InstallerRouteOptions,
+  ) {}
+
+  async handle(request: InstallerHttpRequest): Promise<InstallerHttpResponse> {
+    const suffix = request.pathname.slice(ROUTE_PREFIX.length)
+    if (request.method === 'GET' && (suffix === '' || suffix === '/status')) {
+      return { status: 200, body: apiOk(this.service.snapshot()) }
+    }
+    if (request.method !== 'POST') {
+      return { status: 405, body: apiFail('METHOD', 'method not allowed') }
+    }
+    try {
+      if (suffix === '/restart') return this.#restart(request)
+      if (!sameOrigin({ headers: request.headers })) {
+        return { status: 403, body: apiFail('ORIGIN', 'untrusted origin') }
+      }
+      if (suffix === '/inspect') return await this.#inspect(request)
+      if (suffix === '/install') return await this.#install(request)
+      if (suffix === '/remove') return await this.#remove(request)
+      return { status: 404, body: apiFail('NOT_FOUND', 'unknown installer route') }
+    } catch (error) {
+      return this.#failure(error)
+    }
+  }
+
+  #restart(request: InstallerHttpRequest): InstallerHttpResponse {
+    const disabled = restartDisabledReason(this.options.allowRestart)
+    if (disabled !== null) {
+      return { status: 403, body: apiFail('RESTART_DISABLED', RESTART_DISABLED_MESSAGES[disabled], disabled) }
+    }
+    if (!trustedRestartRequest(request)) {
+      return { status: 403, body: apiFail('ORIGIN', 'restart is limited to same-origin loopback requests') }
+    }
+    if (this.service.isRunning()) {
+      return { status: 409, body: apiFail('BUSY', 'cannot restart while an operation is running') }
+    }
+    if (this.#restarting) {
+      return { status: 409, body: apiFail('BUSY', 'restart already scheduled') }
+    }
+    this.#restarting = true
+    try {
+      const restart = this.options.restart ?? scheduleRestart
+      return { status: 202, body: apiOk(restart(servingPort(request))) }
+    } catch (error) {
+      this.#restarting = false
+      throw error
+    }
+  }
+
+  async #inspect(request: InstallerHttpRequest): Promise<InstallerHttpResponse> {
+    const limit = this.service.snapshot().maxUploadBytes
+    const bytes = await request.readBody(limit)
+    const preview = await this.service.inspect(bytes, fileNameFrom(request.headers))
+    return { status: 201, body: apiOk(preview) }
+  }
+
+  async #install(request: InstallerHttpRequest): Promise<InstallerHttpResponse> {
+    const parsed: unknown = parseJsonBody(await request.readBody(4096))
+    const body = typeof parsed === 'object' && parsed !== null ? parsed as { token?: unknown; allowScripts?: unknown } : null
+    if (body === null || typeof body.token !== 'string' || typeof body.allowScripts !== 'boolean') {
+      return { status: 400, body: apiFail('VALIDATION', 'token and allowScripts are required') }
+    }
+    const operation = await this.service.start(body.token, body.allowScripts)
+    return { status: 202, body: apiOk(operation) }
+  }
+
+  async #remove(request: InstallerHttpRequest): Promise<InstallerHttpResponse> {
+    const parsed: unknown = parseJsonBody(await request.readBody(4096))
+    const name = typeof parsed === 'object' && parsed !== null ? (parsed as { name?: unknown }).name : undefined
+    if (typeof name !== 'string') {
+      return { status: 400, body: apiFail('VALIDATION', 'name is required') }
+    }
+    const operation = await this.service.remove(name)
+    return { status: 202, body: apiOk(operation) }
+  }
+
+  #failure(error: unknown): InstallerHttpResponse {
+    if (error instanceof InstallerError) {
+      const status = error.code === 'BUSY' ? 409 : 400
+      return { status, body: apiFail(error.code, error.message) }
+    }
+    if (error instanceof TarballValidationError) {
+      return { status: 400, body: apiFail('VALIDATION', error.message) }
+    }
+    if (error instanceof HttpBodyError) {
+      return { status: error.status, body: apiFail('VALIDATION', error.message) }
+    }
+    // Internal failures are logged host-side and reported without detail.
+    this.options.logger?.error(`[configcenter] installer route failed: ${error instanceof Error ? error.message : String(error)}`)
+    return { status: 500, body: apiFail('INTERNAL', 'internal installer failure') }
+  }
+}
+
+/** Mount the same-origin upload, install, remove, status, and restart API. */
+export function registerInstallerRoutes(host: WebServerHost, service: InstallerService, options: InstallerRouteOptions): () => void {
+  const router = new InstallerRouter(service, { logger: host.logger, ...options })
   return host.webServer.register({
     kind: 'prefix',
     path: ROUTE_PREFIX,
     handler: async (request, response) => {
-      const url = new URL(request.url ?? '/', 'http://localhost')
-      const suffix = url.pathname.slice(ROUTE_PREFIX.length)
-      if (request.method === 'GET' && (suffix === '' || suffix === '/status')) {
-        sendJson(response, 200, apiOk(service.snapshot()))
-        return
-      }
-      if (request.method !== 'POST') {
-        sendJson(response, 405, apiFail('METHOD', 'method not allowed'))
-        return
-      }
-      if (suffix === '/restart') {
-        const disabled = restartDisabledReason(options.allowRestart)
-        if (disabled !== null) { sendJson(response, 403, apiFail('RESTART_DISABLED', disabled)); return }
-        if (!trustedRestartRequest(request)) { sendJson(response, 403, apiFail('ORIGIN', 'restart is limited to same-origin loopback requests')); return }
-        if (service.isRunning()) { sendJson(response, 409, apiFail('BUSY', 'cannot restart while an install is running')); return }
-        if (restarting) { sendJson(response, 409, apiFail('BUSY', 'restart already scheduled')); return }
-        restarting = true
-        try { sendJson(response, 202, apiOk(scheduleRestart(servingPort(request)))) } catch (error) { restarting = false; throw error }
-        return
-      }
-      if (!sameOrigin(request)) {
-        sendJson(response, 403, apiFail('ORIGIN', 'untrusted origin'))
-        return
-      }
       try {
-        if (suffix === '/inspect') {
-          const limit = service.snapshot().maxUploadBytes
-          const bytes = await readBounded(request, limit)
-          const preview = await service.inspect(bytes, fileNameFrom(request))
-          sendJson(response, 201, apiOk(preview))
-          return
-        }
-        if (suffix === '/install') {
-          const body = await readJson(request) as { token?: unknown; allowScripts?: unknown }
-          if (typeof body.token !== 'string' || typeof body.allowScripts !== 'boolean') {
-            sendJson(response, 400, apiFail('VALIDATION', 'token and allowScripts are required'))
-            return
-          }
-          const operation = await service.start(body.token, body.allowScripts)
-          sendJson(response, 202, apiOk(operation))
-          return
-        }
-        if (suffix === '/remove') {
-          const body = await readJson(request) as { name?: unknown }
-          if (typeof body.name !== 'string') { sendJson(response, 400, apiFail('VALIDATION', 'name is required')); return }
-          sendJson(response, 202, apiOk(await service.remove(body.name)))
-          return
-        }
-        sendJson(response, 404, apiFail('NOT_FOUND', 'unknown installer route'))
+        const url = new URL(request.url ?? '/', 'http://localhost')
+        const outcome = await router.handle({
+          method: request.method ?? 'GET',
+          pathname: url.pathname,
+          headers: request.headers,
+          remoteAddress: request.socket.remoteAddress,
+          readBody: maxBytes => readBoundedBody(request, maxBytes),
+        })
+        sendJson(response, outcome.status, outcome.body)
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error)
-        const validation = error instanceof TarballValidationError || /too large|missing|expired|disabled|already running/.test(message)
-        sendJson(response, validation ? 400 : 500, apiFail(validation ? 'VALIDATION' : 'INTERNAL', message))
+        host.logger?.error(`[configcenter] installer route crashed: ${error instanceof Error ? error.message : String(error)}`)
+        sendJson(response, 500, apiFail('INTERNAL', 'internal installer failure'))
       }
     },
   })

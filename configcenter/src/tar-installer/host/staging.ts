@@ -1,7 +1,8 @@
+/** Owns short-lived uploaded artifacts. Tokens never encode filesystem paths. */
 import { randomUUID } from 'node:crypto'
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import type { PackagePreview } from '../shared/protocol.js'
 import { inspectTarball } from './tarball.js'
 
@@ -11,7 +12,6 @@ interface StagedEntry {
   readonly expiresAt: number
 }
 
-/** Owns short-lived uploaded artifacts. Tokens never encode filesystem paths. */
 export class StagingStore {
   readonly #directory: string
   readonly #ttlMs: number
@@ -22,6 +22,7 @@ export class StagingStore {
     this.#ttlMs = ttlMs
   }
 
+  /** Validate and persist one upload, returning its inspection preview. */
   async stage(bytes: Buffer, fileName: string): Promise<PackagePreview> {
     await this.cleanupExpired()
     const token = randomUUID()
@@ -34,12 +35,7 @@ export class StagingStore {
     return preview
   }
 
-  peek(token: string): PackagePreview | null {
-    const entry = this.#entries.get(token)
-    if (entry === undefined || entry.expiresAt <= Date.now()) return null
-    return entry.preview
-  }
-
+  /** Take ownership of a staged tarball, re-verifying it against its recorded digest. */
   async consume(token: string): Promise<{ path: string; preview: PackagePreview } | null> {
     await this.cleanupExpired()
     const entry = this.#entries.get(token)

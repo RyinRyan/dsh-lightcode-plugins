@@ -32,6 +32,7 @@ dsh plugin --profile my-profile add .\dist\configcenter-0.1.0.tgz --ignore-scrip
 ## 开发
 
 - 各插件独立构建与测试，具体命令见其 README。
+- 修改 `configcenter` 前，先阅读其 [AGENTS.md](configcenter/AGENTS.md)（组件使用、开发流程与开发规范）。
 - 修改 `lightcode-factory` 前，先阅读其 [AGENTS.md](lightcode-factory/AGENTS.md) 与 [docs/architecture.md](lightcode-factory/docs/architecture.md)；Workflow 行为与跨组件变更的设计记录在其 `.design/` 下，先设计并通过审计，再编码。
 - `lightcode-factory` 内附 DSH/Cordis 插件教学站：`npm run docs:serve`，入口 `docs/plugin-development/site/index.html`。
 - 提交信息遵循 Conventional Commits（`feat:` / `fix:` / `docs:` / `release:`）。
@@ -39,5 +40,6 @@ dsh plugin --profile my-profile add .\dist\configcenter-0.1.0.tgz --ignore-scrip
 ## 文档索引
 
 - [configcenter README](configcenter/README.md) — 功能、凭据 Service API、`cordis.patch.yml` 配置与数据目录、从旧插件迁移
+- [configcenter AGENTS.md](configcenter/AGENTS.md) — 组件使用、开发流程与开发规范
 - [LightCode Factory README](lightcode-factory/README.md) — 安装基线、包职责、内置 Workflow、安全与生产边界
 - [LightCode Factory 架构](lightcode-factory/docs/architecture.md)、[迁移记录](lightcode-factory/docs/migration.md)、[生产就绪审查](lightcode-factory/docs/production-readiness-review.md)

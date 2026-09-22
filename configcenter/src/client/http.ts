@@ -5,11 +5,15 @@
  * typed error path, so a route failure is reported identically no matter
  * which feature produced it.
  */
-import type { ApiResult, WireErrorCode } from '../shared/api.js'
+import type { ApiFail, WireErrorCode } from '../shared/api.js'
 
-/** A failed panel request: either a wire error code or a transport failure. */
+/** A failed panel request: a wire error code or a transport failure. */
 export class ApiClientError extends Error {
-  constructor(readonly code: WireErrorCode | 'NETWORK', message: string) {
+  constructor(
+    readonly code: WireErrorCode | 'NETWORK',
+    message: string,
+    readonly reasonCode?: string,
+  ) {
     super(message)
     this.name = 'ApiClientError'
   }
@@ -20,7 +24,7 @@ export const REQUEST_TIMEOUT_MS = 12_000
 /** Minimal fetch shape; narrow enough to fake in tests, wide enough for `fetch`. */
 export type FetchLike = (
   input: string,
-  init?: { method?: string; headers?: Record<string, string>; body?: BodyInit | string },
+  init?: { method?: string; headers?: Record<string, string>; body?: BodyInit | string; cache?: RequestCache },
 ) => Promise<{ status: number; json(): Promise<unknown> }>
 
 export async function withTimeout<T>(request: Promise<T>, timeoutMs = REQUEST_TIMEOUT_MS): Promise<T> {
@@ -45,14 +49,11 @@ export async function unwrapJson<T>(response: { status: number; json(): Promise<
   } catch {
     throw new ApiClientError('NETWORK', `invalid response body (HTTP ${response.status})`)
   }
-  const result = body as ApiResult<T>
-  if (result !== null && typeof result === 'object' && result.ok === true) return result.value
-  const failure = result as Partial<ApiResult<T>> & { error?: { code?: WireErrorCode; message?: string } }
-  const code = failure.error?.code
-  throw new ApiClientError(
-    code ?? 'INTERNAL',
-    failure.error?.message ?? `HTTP ${response.status}`,
-  )
+  if (body !== null && typeof body === 'object' && (body as { ok?: unknown }).ok === true) {
+    return (body as { value: T }).value
+  }
+  const error = (body as Partial<ApiFail>).error
+  throw new ApiClientError(error?.code ?? 'INTERNAL', error?.message ?? `HTTP ${response.status}`, error?.reasonCode)
 }
 
 /** Standard init for a JSON POST. */
@@ -60,7 +61,7 @@ export function jsonInit(value: unknown): { method: 'POST'; headers: Record<stri
   return { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(value) }
 }
 
-/** Request helper with timeout; transport failures become `ApiClientError`. */
+/** Fetch with timeout; transport failures become `ApiClientError`. */
 export async function fetchJson(
   doFetch: FetchLike,
   input: string,

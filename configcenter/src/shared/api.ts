@@ -24,7 +24,12 @@ export interface ApiOk<T> {
 
 export interface ApiFail {
   readonly ok: false
-  readonly error: { readonly code: WireErrorCode; readonly message: string }
+  readonly error: {
+    readonly code: WireErrorCode
+    readonly message: string
+    /** Optional stable sub-reason the browser can translate (`message` stays technical). */
+    readonly reasonCode?: string
+  }
 }
 
 export type ApiResult<T> = ApiOk<T> | ApiFail
@@ -33,6 +38,6 @@ export function apiOk<T>(value: T): ApiOk<T> {
   return { ok: true, value }
 }
 
-export function apiFail(code: WireErrorCode, message: string): ApiFail {
-  return { ok: false, error: { code, message } }
+export function apiFail(code: WireErrorCode, message: string, reasonCode?: string): ApiFail {
+  return { ok: false, error: reasonCode === undefined ? { code, message } : { code, message, reasonCode } }
 }

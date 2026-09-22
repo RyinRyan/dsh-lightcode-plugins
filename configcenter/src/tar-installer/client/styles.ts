@@ -1,11 +1,9 @@
-const STYLE_ID = 'dsh-tar-installer-styles'
+/** Lifecycle-bound styles for the installer panel. */
+import { injectStylesOnce } from '../../client/injectStyles.js'
 
-export function injectStyles(): () => void {
-  const existing = document.getElementById(STYLE_ID)
-  if (existing !== null) return () => {}
-  const style = document.createElement('style')
-  style.id = STYLE_ID
-  style.textContent = `
+const STYLE_TAG = 'configcenter/installer.css'
+
+export const INSTALLER_CSS = `
 .dti-root{height:100%;overflow:auto;background:#f6f7f9;color:var(--color-text,#172033);font-family:Inter,ui-sans-serif,system-ui,sans-serif}
 .dti-shell{max-width:920px;margin:0 auto;padding:42px 30px 64px}
 .dti-eyebrow{font-size:12px;font-weight:700;letter-spacing:.11em;text-transform:uppercase;color:#2877e6;margin-bottom:10px}
@@ -23,6 +21,7 @@ export function injectStyles(): () => void {
 .dti-spinner{display:inline-block;width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:dti-spin .7s linear infinite;vertical-align:-2px;margin-right:7px}@keyframes dti-spin{to{transform:rotate(360deg)}}
 @media(max-width:640px){.dti-shell{padding:24px 16px 44px}.dti-title{font-size:25px}.dti-grid{grid-template-columns:1fr}.dti-card{padding:17px}.dti-title-row,.dti-section-heading,.dti-package{align-items:flex-start;flex-direction:column}.dti-package-meta{justify-content:flex-start}}
 `
-  document.head.append(style)
-  return () => style.remove()
+
+export function injectStyles(): () => void {
+  return injectStylesOnce(STYLE_TAG, INSTALLER_CSS)
 }

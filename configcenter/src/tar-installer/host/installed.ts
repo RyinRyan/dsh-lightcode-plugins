@@ -1,5 +1,5 @@
+/** Reads direct profile dependencies; dependency specs are never exposed to the browser. */
 import { existsSync, readFileSync } from 'node:fs'
-import { homedir } from 'node:os'
 import { isAbsolute, join, resolve, sep } from 'node:path'
 import type { InstalledPackage } from '../shared/protocol.js'
 
@@ -10,7 +10,11 @@ function object(value: unknown): JsonObject | null {
 }
 
 function readJson(path: string): JsonObject | null {
-  try { return object(JSON.parse(readFileSync(path, 'utf8')) as unknown) } catch { return null }
+  try {
+    return object(JSON.parse(readFileSync(path, 'utf8')) as unknown)
+  } catch {
+    return null
+  }
 }
 
 function sourceOf(spec: unknown): InstalledPackage['source'] {
@@ -20,13 +24,13 @@ function sourceOf(spec: unknown): InstalledPackage['source'] {
   return /^([~^]|[<>=*\d])/.test(spec) || spec === 'latest' ? 'registry' : 'unknown'
 }
 
+/** Resolve a package directory inside node_modules, or null if the name could escape it. */
 function packagePath(nodeModules: string, name: string): string | null {
   if (!/^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/i.test(name)) return null
   const path = resolve(nodeModules, ...name.split('/'))
   return path.startsWith(`${nodeModules}${sep}`) ? path : null
 }
 
-/** Read direct profile dependencies only; dependency specs are never exposed to the browser. */
 export function listInstalledPackages(profileDirectory: string): InstalledPackage[] {
   const manifest = readJson(join(profileDirectory, 'package.json'))
   const dependencies = object(manifest?.dependencies)
@@ -45,9 +49,4 @@ export function listInstalledPackages(profileDirectory: string): InstalledPackag
       isDshPlugin: dsh !== null && (object(dsh.bundle) !== null || object(dsh.client) !== null),
     }]
   }).sort((left, right) => left.name.localeCompare(right.name))
-}
-
-/** Matches DSH's default on-disk profile location when profileContext.dir is unavailable. */
-export function defaultProfileDirectory(profile: string): string {
-  return join(process.env.DSH_HOME ?? join(homedir(), '.dsh'), 'profiles', profile)
 }

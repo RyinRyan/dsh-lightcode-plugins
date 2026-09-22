@@ -1,5 +1,7 @@
-/** Lifecycle-bound styles for the credential-center panel. */
-export const STYLE_TAG = 'dsh-credential-center/panel.css'
+/** Lifecycle-bound styles for the credential panel. */
+import { injectStylesOnce } from './injectStyles.js'
+
+const STYLE_TAG = 'configcenter/credentials.css'
 
 export const PANEL_CSS = `
 .dsh-config-center{box-sizing:border-box;width:min(1280px,100%);margin:0 auto;padding:28px 32px}.dsh-config-center__header{display:flex;align-items:end;justify-content:space-between;gap:24px;margin-bottom:20px}.dsh-config-center__header h1{margin:0;font-size:24px}.dsh-config-center__header p{margin:8px 0 0;color:var(--dsw-alias-label-secondary)}.dsh-config-center__tabs{display:flex;gap:4px;padding:4px;border-radius:10px;background:var(--dsw-alias-bg-module-platform,#f1f5f9)}.dsh-config-center__tabs button{border:0;border-radius:7px;background:transparent;color:var(--dsw-alias-label-secondary);padding:8px 14px;font:inherit;cursor:pointer}.dsh-config-center__tabs button.active{background:var(--dsw-alias-bg-base,#fff);color:var(--dsw-alias-label-primary);box-shadow:0 1px 3px rgba(15,23,42,.1)}.dsh-config-center__content>.dsh-cc-page{width:100%;padding:0}.dsh-config-center__content>.dti-root{padding:0}.dsh-config-center__content .dti-shell{max-width:none}@media(max-width:700px){.dsh-config-center{padding:20px 16px}.dsh-config-center__header{align-items:start;flex-direction:column}.dsh-config-center__tabs{width:100%}.dsh-config-center__tabs button{flex:1}}
@@ -18,11 +20,5 @@ export const PANEL_CSS = `
 `
 
 export function injectStyles(): () => void {
-  const existing = document.querySelector<HTMLStyleElement>(`style[data-plugin-css="${STYLE_TAG}"]`)
-  if (existing !== null) return () => {}
-  const style = document.createElement('style')
-  style.dataset.pluginCss = STYLE_TAG
-  style.textContent = PANEL_CSS
-  document.head.appendChild(style)
-  return () => { style.remove() }
+  return injectStylesOnce(STYLE_TAG, PANEL_CSS)
 }

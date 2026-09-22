@@ -6,7 +6,6 @@
  * cannot drift apart again.
  */
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { apiFail } from '../shared/api.js'
 
 /** A request-body framing failure with its intended HTTP status. */
 export class HttpBodyError extends Error {
@@ -52,7 +51,11 @@ export async function readBoundedBody(request: IncomingMessage, maxBytes: number
 
 /** Read a bounded JSON body; an empty body resolves to `undefined`. */
 export async function readJsonBody(request: IncomingMessage, maxBytes: number): Promise<unknown> {
-  const bytes = await readBoundedBody(request, maxBytes)
+  return parseJsonBody(await readBoundedBody(request, maxBytes))
+}
+
+/** Parse a JSON body from an already-bounded buffer; empty input resolves to `undefined`. */
+export function parseJsonBody(bytes: Buffer): unknown {
   if (bytes.length === 0) return undefined
   const text = bytes.toString('utf8')
   if (text.trim().length === 0) return undefined
@@ -70,9 +73,4 @@ export function sendJson(response: ServerResponse, status: number, body: unknown
     'x-content-type-options': 'nosniff',
   })
   response.end(JSON.stringify(body))
-}
-
-/** Uniform failure response for body framing errors. */
-export function sendBodyError(response: ServerResponse, error: HttpBodyError): void {
-  sendJson(response, error.status, apiFail('VALIDATION', error.message))
 }

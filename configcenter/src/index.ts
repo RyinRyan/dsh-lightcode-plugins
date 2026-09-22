@@ -2,12 +2,12 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import z from '@deepseek-ai/schemastery'
-import { registerCredentialCenterRoutes } from './host/routes.js'
+import { registerCredentialCenterRoutes, registerUnavailableRoutes } from './host/routes.js'
+import { resolveProfileDirectory, resolveProfileName, type ProfileContextLike } from './host/profile.js'
 import { VariableStore, defaultDataDir } from './host/store.js'
 import { InstallerService } from './tar-installer/host/installer.js'
 import { registerInstallerRoutes } from './tar-installer/host/routes.js'
-import { cleanHotInputs, hotMount, type HotContext } from './tar-installer/host/hot.js'
-import { defaultProfileDirectory } from './tar-installer/host/installed.js'
+import { cleanHotInputs, hotMount, hotUnmount, type HotContext } from './tar-installer/host/hot.js'
 
 /** Host-only service consumed by other DSH plugins. */
 export interface CredentialVariables {
@@ -19,7 +19,7 @@ export interface CredentialVariables {
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
-    /** Variables configured through dsh-credential-center. */
+    /** Variables configured through the configuration center. */
     credentialVariables: CredentialVariables
   }
 }
@@ -38,47 +38,67 @@ export interface Config {
   allowRestart?: boolean
 }
 
-export const Config: z<Config> = z.object({ dataDir: z.string(), profile: z.string(), maxUploadMiB: z.natural().min(1).max(512).default(128), allowInstallScripts: z.boolean().default(false), allowRestart: z.boolean().default(true) })
+export const Config: z<Config> = z.object({
+  dataDir: z.string(),
+  profile: z.string(),
+  maxUploadMiB: z.natural().min(1).max(512).default(128),
+  allowInstallScripts: z.boolean().default(false),
+  allowRestart: z.boolean().default(true),
+})
 
-interface ProfileContextLike { readonly name?: unknown; readonly dir?: unknown }
-function argvProfile(): string | undefined { const at = process.argv.indexOf('--profile'); return at >= 0 && typeof process.argv[at + 1] === 'string' ? process.argv[at + 1] : undefined }
-
-/** Mount the persistent store, consumer service, and browser routes. */
+/**
+ * Mount the persistent store, the consumer service, and the browser routes.
+ * Pure composition: discovery lives in `host/profile.ts`, storage in
+ * `host/store.ts`, and the installer in `tar-installer/host/`.
+ */
 export function apply(ctx: Context, config: Config): void {
   const store = new VariableStore({ dataDir: config.dataDir ?? defaultDataDir() })
   const profileContext = ctx.get('profileContext') as ProfileContextLike | undefined
-  const profile = config.profile ?? (typeof profileContext?.name === 'string' ? profileContext.name : undefined) ?? argvProfile() ?? 'web'
-  const profileDirectory = (typeof profileContext?.dir === 'string' && !profileContext.dir.includes('\0') ? profileContext.dir : undefined) ?? defaultProfileDirectory(profile)
-  const installer = new InstallerService({ profile, profileDirectory, maxUploadBytes: (config.maxUploadMiB ?? 128) * 1024 * 1024, allowInstallScripts: config.allowInstallScripts ?? false, activate: packageName => hotMount(ctx as unknown as HotContext, profileDirectory, packageName), audit: (event, details) => ctx.logger.info(`[configcenter] ${event} ${JSON.stringify(details)}`) })
-  void cleanHotInputs(profileDirectory).catch(error => ctx.logger.warn(new Error(`configcenter: hot-input cleanup failed: ${error instanceof Error ? error.message : String(error)}`)))
-  let disposeRoutes: (() => void) | undefined
-  let disposeService: (() => void) | undefined
+  const profile = resolveProfileName(config.profile, profileContext)
+  const profileDirectory = resolveProfileDirectory(profile, profileContext)
+  const installer = new InstallerService({
+    profile,
+    profileDirectory,
+    maxUploadBytes: (config.maxUploadMiB ?? 128) * 1024 * 1024,
+    allowInstallScripts: config.allowInstallScripts ?? false,
+    activate: packageName => hotMount(ctx as unknown as HotContext, profileDirectory, packageName),
+    deactivate: async packageName => (await hotUnmount(packageName)
+      ? { state: 'live' }
+      : { state: 'restart-required', reasonCode: 'not-mounted', reason: 'the package was not hot-mounted in this session' }),
+    audit: (event, details) => ctx.logger.info(`[configcenter] ${event} ${JSON.stringify(details)}`),
+  })
+  void cleanHotInputs(profileDirectory).catch(error => {
+    ctx.logger.warn(new Error(`configcenter: hot-input cleanup failed: ${error instanceof Error ? error.message : String(error)}`))
+  })
+
+  let disposers: Array<() => void> = []
   let disposed = false
   const ready = store.load()
   ctx.effect(() => {
+    // The installer half does not depend on the credential store.
+    disposers.push(registerInstallerRoutes(ctx, installer, { allowRestart: config.allowRestart ?? true }))
     void ready.then(
       () => {
         if (disposed) return
-        const service: CredentialVariables = {
+        disposers.push(ctx.provide('credentialVariables', {
           get: name => store.get(name),
           require: name => store.require(name),
-        }
-        disposeService = ctx.provide('credentialVariables', service)
-        disposeRoutes = registerCredentialCenterRoutes(ctx, store)
-        const disposeCredentialRoutes = disposeRoutes
-        const disposeInstallerRoutes = registerInstallerRoutes(ctx, installer, { allowRestart: config.allowRestart ?? true })
-        disposeRoutes = () => { disposeCredentialRoutes?.(); disposeInstallerRoutes() }
+        }))
+        disposers.push(registerCredentialCenterRoutes(ctx, store))
       },
       error => {
-        ctx.logger.error(new Error(`configcenter: credential store load failed: ${error instanceof Error ? error.message : String(error)}`))
+        // Degrade visibly: the panel explains the outage instead of showing a 404.
+        if (disposed) return
+        const reason = error instanceof Error ? error.message : String(error)
+        ctx.logger.error(new Error(`configcenter: credential store load failed: ${reason}`))
+        disposers.push(registerUnavailableRoutes(ctx, reason))
       },
     )
     return async () => {
       disposed = true
-      disposeRoutes?.()
-      disposeService?.()
+      for (const dispose of disposers.splice(0)) dispose()
       await installer.dispose()
       await store.dispose()
     }
-  }, 'dsh-configuration-center: credentials, installer, and routes')
+  }, 'configcenter: credentials, installer, and routes')
 }
